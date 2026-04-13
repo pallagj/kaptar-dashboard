@@ -26,7 +26,7 @@ error() { echo -e "${RED}[✗]${NC} $1"; exit 1; }
 [[ -f /etc/debian_version ]] || warn "Script tested on Debian/Ubuntu — adapt for your OS."
 
 info "Installing system dependencies..."
-sudo apt-get update -qq
+sudo apt-get update -qq || true || warn "apt-get update had errors (continuing)"
 sudo apt-get install -y -qq curl git python3 python3-pip python3-venv build-essential > /dev/null
 
 if ! command -v node &> /dev/null || [[ $(node -v | cut -d. -f1 | tr -d v) -lt 20 ]]; then
@@ -108,7 +108,7 @@ if [[ -n "$DOMAIN" ]]; then
     sudo apt-get install -y -qq debian-keyring debian-archive-keyring apt-transport-https > /dev/null
     curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | sudo gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg 2>/dev/null
     curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | sudo tee /etc/apt/sources.list.d/caddy-stable.list > /dev/null
-    sudo apt-get update -qq
+    sudo apt-get update -qq || true
     sudo apt-get install -y -qq caddy > /dev/null
   fi
 
