@@ -50,7 +50,7 @@ export function Seasons({ hiveId, seasons, flowers, onChange, notify }: Props) {
       </div>
 
       {pieData.length > 0 && (
-        <div className="card p-4 sm:p-5">
+        <div className="card p-2 pt-4 sm:p-5">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm uppercase tracking-wider text-slate-400">Termelés virágonként</h3>
             <ChartToggle view={pieView} setView={setPieView} />

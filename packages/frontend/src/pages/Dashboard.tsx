@@ -141,7 +141,7 @@ export function Dashboard({ stats, batteryWarnV, range, setRange }: Props) {
       )}
 
       {/* Main chart (weight + temp) */}
-      <div className="card p-4 sm:p-5">
+      <div className="card p-2 pt-4 sm:p-5">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm uppercase tracking-wider text-slate-400">Súly & hőfok</h3>
           <ChartToggle view={mainView} setView={setMainView} />
@@ -158,7 +158,7 @@ export function Dashboard({ stats, batteryWarnV, range, setRange }: Props) {
       </div>
 
       {/* Daily diff chart/table */}
-      <div className="card p-4 sm:p-5">
+      <div className="card p-2 pt-4 sm:p-5">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm uppercase tracking-wider text-slate-400">Napi súlyváltozás</h3>
           <ChartToggle view={diffView} setView={setDiffView} />
