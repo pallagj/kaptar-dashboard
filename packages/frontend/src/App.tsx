@@ -145,6 +145,7 @@ export default function App() {
             hiveId={hiveId}
             seasons={seasons}
             flowers={flowers}
+            history={stats?.history ?? []}
             onChange={() => loadAll(hiveId)}
             notify={notify}
           />

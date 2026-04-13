@@ -1,7 +1,10 @@
 import { useMemo, useState } from 'react'
 import { Flower2, Plus, Trash2, StopCircle } from 'lucide-react'
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts'
-import { api, type Flower, type Season } from '../lib/api'
+import {
+  PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend,
+  LineChart, Line, XAxis, YAxis, CartesianGrid,
+} from 'recharts'
+import { api, type Flower, type Season, type Measurement } from '../lib/api'
 import { Modal } from '../components/Modal'
 import { ChartToggle } from '../components/ChartToggle'
 import { fmtSigned, daysBetween } from '../lib/format'
@@ -12,14 +15,73 @@ interface Props {
   hiveId: string
   seasons: Season[]
   flowers: Flower[]
+  history: Measurement[]
   onChange: () => void
   notify: (m: string) => void
 }
 
-export function Seasons({ hiveId, seasons, flowers, onChange, notify }: Props) {
+export function Seasons({ hiveId, seasons, flowers, history, onChange, notify }: Props) {
   const [showStart, setShowStart] = useState(false)
   const [selectedFlower, setSelectedFlower] = useState('')
   const [pieView, setPieView] = useState<'chart' | 'table'>('chart')
+
+  // Flowers that have at least one season recorded — for the comparison dropdown.
+  const flowersWithSeasons = useMemo(() => {
+    const ids = new Set(seasons.map(s => s.flower_id))
+    return flowers.filter(f => ids.has(f.id))
+  }, [flowers, seasons])
+  const [compareFlower, setCompareFlower] = useState('')
+  const effectiveCompareFlower = compareFlower || flowersWithSeasons[0]?.id || ''
+
+  const compareData = useMemo(() => {
+    if (!effectiveCompareFlower || !history.length) return { series: [], maxDay: 0 }
+    const seasonsOfFlower = seasons.filter(s => s.flower_id === effectiveCompareFlower)
+    if (!seasonsOfFlower.length) return { series: [], maxDay: 0 }
+    // history is newest-first; sort asc for easier walking
+    const hAsc = [...history].sort((a, b) => a.timestamp - b.timestamp)
+    let maxDay = 0
+    const series = seasonsOfFlower.map(s => {
+      const endTs = s.end_ts ?? hAsc[hAsc.length - 1]?.timestamp ?? s.start_ts
+      // keep last measurement per day during the season
+      const byDay = new Map<number, { t: number; w: number }>()
+      for (const m of hAsc) {
+        if (m.timestamp < s.start_ts || m.timestamp > endTs) continue
+        const day = Math.floor((m.timestamp - s.start_ts) / 86400000)
+        const prev = byDay.get(day)
+        if (!prev || m.timestamp > prev.t) byDay.set(day, { t: m.timestamp, w: m.weight })
+      }
+      const points = [...byDay.entries()]
+        .sort((a, b) => a[0] - b[0])
+        .map(([day, v]) => ({ day, gain: +(v.w - s.start_weight).toFixed(2) }))
+      if (points.length && points[0].day > 0) points.unshift({ day: 0, gain: 0 })
+      else if (!points.length) points.push({ day: 0, gain: 0 })
+      const label = `${s.flower_name ?? s.flower_id} ${new Date(s.start_ts).getFullYear()}`
+      const last = points[points.length - 1]
+      if (last.day > maxDay) maxDay = last.day
+      return { id: s.id, label, active: s.end_ts === null, points }
+    })
+    return { series, maxDay }
+  }, [effectiveCompareFlower, seasons, history])
+
+  // Merge series into one dataset by day for Recharts (one column per season).
+  const mergedCompare = useMemo(() => {
+    if (!compareData.series.length) return []
+    const rows: Record<string, number | null>[] = []
+    for (let d = 0; d <= compareData.maxDay; d++) {
+      const row: Record<string, number | null> = { day: d }
+      for (const s of compareData.series) {
+        // use last-known gain up to this day (step interpolation)
+        let val: number | null = null
+        for (const p of s.points) {
+          if (p.day <= d) val = p.gain
+          else break
+        }
+        row[s.label] = val
+      }
+      rows.push(row)
+    }
+    return rows
+  }, [compareData])
 
   const pieData = useMemo(() => {
     const map = new Map<string, number>()
@@ -48,6 +110,63 @@ export function Seasons({ hiveId, seasons, flowers, onChange, notify }: Props) {
           <Plus size={18} /> Új szezon indítása
         </button>
       </div>
+
+      {flowersWithSeasons.length > 0 && (
+        <div className="card p-2 pt-4 sm:p-5">
+          <div className="flex items-center justify-between mb-3 px-2 sm:px-0 gap-2 flex-wrap">
+            <h3 className="text-sm uppercase tracking-wider text-slate-400">Összehasonlítás virág szerint</h3>
+            <select
+              className="input !py-1.5 !w-auto text-sm"
+              value={effectiveCompareFlower}
+              onChange={e => setCompareFlower(e.target.value)}
+            >
+              {flowersWithSeasons.map(f => (
+                <option key={f.id} value={f.id}>{f.name}</option>
+              ))}
+            </select>
+          </div>
+          {compareData.series.length === 0 ? (
+            <p className="text-sm text-slate-400 px-2 py-6 text-center">Nincs adat ehhez a virághoz.</p>
+          ) : (
+            <ResponsiveContainer width="100%" height={320}>
+              <LineChart data={mergedCompare} margin={{ top: 10, right: 4, left: -8, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                <XAxis
+                  dataKey="day"
+                  stroke="#94a3b8"
+                  fontSize={11}
+                  tickFormatter={(d: number) => `${d}. nap`}
+                  minTickGap={24}
+                />
+                <YAxis
+                  stroke="#94a3b8"
+                  fontSize={11}
+                  width={34}
+                  tickFormatter={(v: number) => `${v}`}
+                />
+                <Tooltip
+                  contentStyle={{ background: 'rgba(15,23,42,0.95)', border: '1px solid #334155', borderRadius: 8 }}
+                  labelFormatter={(d: number) => `${d}. nap`}
+                  formatter={(v: number) => [`${v >= 0 ? '+' : ''}${v.toFixed(2)} kg`, '']}
+                />
+                <Legend wrapperStyle={{ color: '#94a3b8' }} />
+                {compareData.series.map((s, i) => (
+                  <Line
+                    key={s.id}
+                    type="monotone"
+                    dataKey={s.label}
+                    stroke={COLORS[i % COLORS.length]}
+                    strokeWidth={2.5}
+                    strokeDasharray={s.active ? '4 3' : undefined}
+                    dot={false}
+                    connectNulls
+                  />
+                ))}
+              </LineChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+      )}
 
       {pieData.length > 0 && (
         <div className="card p-2 pt-4 sm:p-5">
