@@ -97,7 +97,8 @@ export default function App() {
   const batteryWarnV = settings ? Number(settings.battery_warn_v) : 5.6
 
   return (
-    <div className="min-h-full max-w-6xl mx-auto px-3 sm:px-6 py-4 sm:py-6 pb-28">
+    <div className="min-h-screen flex flex-col">
+    <div className="flex-1 w-full max-w-6xl mx-auto px-3 sm:px-6 py-4 sm:py-6">
       {/* Header */}
       <header className="flex flex-wrap items-center gap-3 mb-6">
         <div className="flex-1 min-w-0">
@@ -159,9 +160,10 @@ export default function App() {
         )}
       </main>
 
-      {/* Bottom nav (mobile-app style) */}
+      </div>
+      {/* Bottom nav — sticky, in layout flow (no fixed-positioning quirks on iOS PWA) */}
       <nav
-        className="bottom-nav fixed bottom-0 inset-x-0 z-40 bg-slate-900/95 backdrop-blur border-t border-slate-700/50"
+        className="bottom-nav sticky bottom-0 z-40 bg-slate-900/95 backdrop-blur border-t border-slate-700/50"
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
         <div className="max-w-6xl mx-auto flex">
