@@ -1,0 +1,1 @@
+{"root":["./src/App.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/components/BatteryGauge.tsx","./src/components/Charts.tsx","./src/components/Modal.tsx","./src/components/StatCard.tsx","./src/lib/api.ts","./src/lib/format.ts","./src/pages/Dashboard.tsx","./src/pages/Seasons.tsx","./src/pages/Settings.tsx","./src/pages/WeightChange.tsx"],"version":"5.9.3"}

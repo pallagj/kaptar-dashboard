@@ -1,0 +1,11 @@
+{
+  "name": "kaptar-dashboard",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"pnpm --filter frontend dev\" \"cd packages/backend && .venv/bin/uvicorn app.main:app --reload --port 8001\"",
+    "build": "pnpm --filter frontend build"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  }
+}
