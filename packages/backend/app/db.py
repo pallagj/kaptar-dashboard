@@ -44,6 +44,17 @@ CREATE TABLE IF NOT EXISTS settings (
     key   TEXT PRIMARY KEY,
     value TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS tare_events (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    hive_id    TEXT NOT NULL,
+    timestamp  INTEGER NOT NULL,
+    offset     REAL NOT NULL,
+    target_net REAL,
+    note       TEXT,
+    created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_tare_events_hive_ts ON tare_events(hive_id, timestamp);
 """
 
 DEFAULT_SETTINGS = {
@@ -97,6 +108,23 @@ def init_db():
             c.execute("INSERT OR IGNORE INTO flowers(id,name) VALUES(?,?)", (fid, name))
         # Takarítás: szenzor-hibás mérések (súly < 5 kg) kidobása
         c.execute("DELETE FROM measurements WHERE weight < 5.0")
+        # Migráció: ha volt régi hives.tare_offset, amit még nem rögzítettünk eseményként,
+        # készítsünk kezdő tára-eseményt a legkorábbi mérés idejére (így a múlt képe nem változik).
+        hives_rows = c.execute("SELECT id, tare_offset FROM hives WHERE tare_offset != 0").fetchall()
+        for h in hives_rows:
+            has_event = c.execute(
+                "SELECT 1 FROM tare_events WHERE hive_id=? LIMIT 1", (h["id"],)
+            ).fetchone()
+            if has_event:
+                continue
+            first = c.execute(
+                "SELECT MIN(timestamp) as ts FROM measurements WHERE hive_id=?", (h["id"],)
+            ).fetchone()
+            ts = first["ts"] if first and first["ts"] is not None else now
+            c.execute(
+                "INSERT INTO tare_events(hive_id,timestamp,offset,target_net,note,created_at) VALUES(?,?,?,?,?,?)",
+                (h["id"], ts, h["tare_offset"], None, "Migrált a régi hives.tare_offset-ből", now),
+            )
 
 
 def get_setting(key: str, default: str | None = None) -> str | None:

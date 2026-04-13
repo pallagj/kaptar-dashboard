@@ -3,12 +3,12 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   BarChart, Bar, Cell, ReferenceLine, Legend, Area, AreaChart,
 } from 'recharts'
-import type { Measurement } from '../lib/api'
+import type { Measurement, TareEvent } from '../lib/api'
 
 const GRID = '#334155'
 const AXIS = '#94a3b8'
 
-export function WeightTempChart({ data }: { data: Measurement[] }) {
+export function WeightTempChart({ data, tareEvents = [] }: { data: Measurement[]; tareEvents?: TareEvent[] }) {
   const chartData = useMemo(
     () => [...data].reverse().map(d => ({
       t: d.timestamp,
@@ -18,6 +18,26 @@ export function WeightTempChart({ data }: { data: Measurement[] }) {
     })),
     [data],
   )
+  // Map each tare event to the nearest data-point label (categorical x axis requires category match).
+  const tareMarkers = useMemo(() => {
+    if (!tareEvents.length || !chartData.length) return []
+    const markers: { label: string; target: number | null; note: string | null }[] = []
+    const seen = new Set<string>()
+    for (const ev of tareEvents) {
+      let bestIdx = 0
+      let bestDiff = Infinity
+      for (let i = 0; i < chartData.length; i++) {
+        const diff = Math.abs(chartData[i].t - ev.timestamp)
+        if (diff < bestDiff) { bestDiff = diff; bestIdx = i }
+      }
+      const label = chartData[bestIdx].label
+      if (seen.has(label)) continue
+      seen.add(label)
+      markers.push({ label, target: ev.target_net, note: ev.note })
+    }
+    return markers
+  }, [chartData, tareEvents])
+
   return (
     <ResponsiveContainer width="100%" height={340}>
       <LineChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
@@ -30,6 +50,21 @@ export function WeightTempChart({ data }: { data: Measurement[] }) {
           labelStyle={{ color: '#cbd5e1' }}
         />
         <Legend wrapperStyle={{ color: '#94a3b8' }} />
+        {tareMarkers.map((m, i) => (
+          <ReferenceLine
+            key={i}
+            yAxisId="left"
+            x={m.label}
+            stroke="#a78bfa"
+            strokeDasharray="4 3"
+            label={{
+              value: m.note ? `⚖ ${m.note}` : '⚖ tára',
+              position: 'top',
+              fill: '#a78bfa',
+              fontSize: 10,
+            }}
+          />
+        ))}
         <Line yAxisId="left" type="monotone" dataKey="weight" name="Súly (kg)" stroke="#f59e0b" strokeWidth={2.5} dot={false} />
         <Line yAxisId="right" type="monotone" dataKey="temp" name="Hőfok (°C)" stroke="#38bdf8" strokeWidth={2} dot={false} />
       </LineChart>

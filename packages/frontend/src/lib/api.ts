@@ -38,6 +38,16 @@ export interface Alert {
   type: string
 }
 
+export interface TareEvent {
+  id: number
+  hive_id: string
+  timestamp: number
+  offset: number
+  target_net: number | null
+  note: string | null
+  created_at: number
+}
+
 export interface Stats {
   latest: Measurement | null
   delta_24h: number | null
@@ -48,6 +58,7 @@ export interface Stats {
   history: Measurement[]
   active_season: ActiveSeason | null
   tare_offset: number
+  tare_events: TareEvent[]
 }
 
 export interface Hive {
@@ -108,11 +119,15 @@ export const api = {
     request<{ ok: boolean }>(`/api/seasons/close?hive_id=${encodeURIComponent(hive_id)}`, { method: 'POST' }),
   deleteSeason: (id: number) =>
     request<{ ok: boolean }>(`/api/seasons/${id}`, { method: 'DELETE' }),
-  tare: (hive_id: string, target_net_kg: number) =>
+  tare: (hive_id: string, target_net_kg: number, note?: string) =>
     request<{ ok: boolean; tare_offset: number }>(
-      `/api/tare?hive_id=${encodeURIComponent(hive_id)}&target_net_kg=${target_net_kg}`,
+      `/api/tare?hive_id=${encodeURIComponent(hive_id)}&target_net_kg=${target_net_kg}${note ? `&note=${encodeURIComponent(note)}` : ''}`,
       { method: 'POST' },
     ),
+  tareEvents: (hive_id: string) =>
+    request<TareEvent[]>(`/api/tare-events?hive_id=${encodeURIComponent(hive_id)}`),
+  deleteTareEvent: (id: number) =>
+    request<{ ok: boolean }>(`/api/tare-events/${id}`, { method: 'DELETE' }),
   settings: () => request<Settings>('/api/settings'),
   updateSettings: (s: Partial<Record<keyof Settings, number>>) =>
     request<{ ok: boolean }>('/api/settings', { method: 'PATCH', body: JSON.stringify(s) }),

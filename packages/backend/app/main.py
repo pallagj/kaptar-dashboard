@@ -11,6 +11,7 @@ from pydantic import BaseModel
 from .db import db, init_db, get_setting, set_setting
 from .scraper import sync_all
 from .scheduler import start_scheduler, reschedule
+from .tare import list_events as tare_list, effective_offset, apply_offsets
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
@@ -69,8 +70,14 @@ def health():
 @app.get("/api/hives")
 def list_hives():
     with db() as c:
-        rows = c.execute("SELECT id,name,source_url,tare_offset FROM hives ORDER BY name").fetchall()
-        return [dict(r) for r in rows]
+        rows = c.execute("SELECT id,name,source_url FROM hives ORDER BY name").fetchall()
+        out = []
+        now = int(time.time() * 1000)
+        for r in rows:
+            d = dict(r)
+            d["tare_offset"] = effective_offset(c, d["id"], now)
+            out.append(d)
+        return out
 
 
 @app.post("/api/hives")
@@ -105,6 +112,7 @@ def delete_hive(hive_id: str):
     with db() as c:
         c.execute("DELETE FROM measurements WHERE hive_id=?", (hive_id,))
         c.execute("DELETE FROM seasons WHERE hive_id=?", (hive_id,))
+        c.execute("DELETE FROM tare_events WHERE hive_id=?", (hive_id,))
         c.execute("DELETE FROM hives WHERE id=?", (hive_id,))
     return {"ok": True}
 
@@ -178,9 +186,8 @@ def start_season(inp: SeasonIn):
         ).fetchone()
         if not latest:
             raise HTTPException(400, "Nincs még mért adat ehhez a kaptárhoz.")
-        tare = c.execute("SELECT tare_offset FROM hives WHERE id=?", (inp.hive_id,)).fetchone()
-        tare_offset = tare["tare_offset"] if tare else 0.0
-        net_weight = latest["weight"] - tare_offset
+        tare_offset = effective_offset(c, inp.hive_id, latest["timestamp"])
+        net_weight = round(latest["weight"] - tare_offset, 2)
         now_ts = latest["timestamp"]
         # close previous
         c.execute(
@@ -203,9 +210,8 @@ def close_season(hive_id: str):
         ).fetchone()
         if not latest:
             raise HTTPException(400, "Nincs mért adat.")
-        tare = c.execute("SELECT tare_offset FROM hives WHERE id=?", (hive_id,)).fetchone()
-        tare_offset = tare["tare_offset"] if tare else 0.0
-        net_weight = latest["weight"] - tare_offset
+        tare_offset = effective_offset(c, hive_id, latest["timestamp"])
+        net_weight = round(latest["weight"] - tare_offset, 2)
         c.execute(
             "UPDATE seasons SET end_ts=?, end_weight=? WHERE hive_id=? AND end_ts IS NULL",
             (latest["timestamp"], net_weight, hive_id),
@@ -221,18 +227,38 @@ def delete_season(season_id: int):
 
 
 @app.post("/api/tare")
-def tare(hive_id: str, target_net_kg: float):
-    """Set the tare offset so that the latest measurement reads as target_net_kg net."""
+def tare(hive_id: str, target_net_kg: float, note: Optional[str] = None):
+    """Rögzít egy új tára-eseményt a mostani időpontra, úgy hogy a legutolsó mérés
+    nettóban pont `target_net_kg`-ot mutasson. A korábbi mérések offsetje nem változik."""
+    now = int(time.time() * 1000)
     with db() as c:
         row = c.execute(
-            "SELECT weight FROM measurements WHERE hive_id=? ORDER BY timestamp DESC LIMIT 1",
+            "SELECT timestamp,weight FROM measurements WHERE hive_id=? ORDER BY timestamp DESC LIMIT 1",
             (hive_id,),
         ).fetchone()
         if not row:
             raise HTTPException(400, "Nincs mért adat.")
-        offset = row["weight"] - target_net_kg
-        c.execute("UPDATE hives SET tare_offset=? WHERE id=?", (offset, hive_id))
+        offset = round(row["weight"] - target_net_kg, 2)
+        event_ts = max(int(row["timestamp"]) + 1, now)
+        c.execute(
+            "INSERT INTO tare_events(hive_id,timestamp,offset,target_net,note,created_at) "
+            "VALUES(?,?,?,?,?,?)",
+            (hive_id, event_ts, offset, target_net_kg, note, now),
+        )
     return {"ok": True, "tare_offset": offset}
+
+
+@app.get("/api/tare-events")
+def list_tare_events(hive_id: str):
+    with db() as c:
+        return tare_list(c, hive_id)
+
+
+@app.delete("/api/tare-events/{event_id}")
+def delete_tare_event(event_id: int):
+    with db() as c:
+        c.execute("DELETE FROM tare_events WHERE id=?", (event_id,))
+    return {"ok": True}
 
 
 @app.get("/api/settings")
@@ -256,15 +282,14 @@ def update_settings(upd: SettingsUpdate):
 def stats(hive_id: str = "J0102466"):
     """Summary: latest, 24h/7d delta, swarm alerts, daily diffs."""
     with db() as c:
-        tare = c.execute("SELECT tare_offset FROM hives WHERE id=?", (hive_id,)).fetchone()
-        tare_offset = tare["tare_offset"] if tare else 0.0
+        events = tare_list(c, hive_id)
         rows = c.execute(
             "SELECT timestamp,date_str,weight,battery,temp FROM measurements WHERE hive_id=? ORDER BY timestamp DESC LIMIT 5000",
             (hive_id,),
         ).fetchall()
         rows = [dict(r) for r in rows]
-        for r in rows:
-            r["weight"] = round(r["weight"] - tare_offset, 2)
+        apply_offsets(events, rows)
+        tare_offset = float(events[-1]["offset"]) if events else 0.0
 
         active = c.execute(
             "SELECT s.*, f.name as flower_name FROM seasons s LEFT JOIN flowers f ON f.id=s.flower_id WHERE s.hive_id=? AND s.end_ts IS NULL ORDER BY s.start_ts DESC LIMIT 1",
@@ -273,7 +298,7 @@ def stats(hive_id: str = "J0102466"):
         active = dict(active) if active else None
 
     if not rows:
-        return {"latest": None, "history": [], "active_season": active, "tare_offset": tare_offset}
+        return {"latest": None, "history": [], "active_season": active, "tare_offset": tare_offset, "tare_events": events}
 
     latest = rows[0]
     now_ts = latest["timestamp"]
@@ -339,4 +364,5 @@ def stats(hive_id: str = "J0102466"):
         "history": rows,
         "active_season": active,
         "tare_offset": tare_offset,
+        "tare_events": events,
     }

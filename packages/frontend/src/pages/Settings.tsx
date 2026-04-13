@@ -1,20 +1,23 @@
 import { useState } from 'react'
-import { Plus, Trash2, Scale, Pencil } from 'lucide-react'
-import { api, type Flower, type Hive, type Settings as S } from '../lib/api'
+import { Plus, Trash2, Scale, Pencil, History } from 'lucide-react'
+import { api, type Flower, type Hive, type Settings as S, type TareEvent } from '../lib/api'
 import { Modal } from '../components/Modal'
+import { fmtDate } from '../lib/format'
 
 interface Props {
   hive: Hive
   flowers: Flower[]
   settings: S
+  tareEvents: TareEvent[]
   onChange: () => void
   notify: (m: string) => void
 }
 
-export function SettingsPage({ hive, flowers, settings, onChange, notify }: Props) {
+export function SettingsPage({ hive, flowers, settings, tareEvents, onChange, notify }: Props) {
   const [newFlowerName, setNewFlowerName] = useState('')
   const [tareOpen, setTareOpen] = useState(false)
   const [tareTarget, setTareTarget] = useState('')
+  const [tareNote, setTareNote] = useState('')
 
   const [hiveOpen, setHiveOpen] = useState(false)
   const [hiveName, setHiveName] = useState(hive.name)
@@ -60,6 +63,58 @@ export function SettingsPage({ hive, flowers, settings, onChange, notify }: Prop
             <Scale size={18} /> Tárázás
           </button>
         </div>
+      </section>
+
+      <section className="card p-5">
+        <div className="flex items-center gap-2 mb-1">
+          <History size={18} className="text-slate-400" />
+          <h2 className="text-lg font-bold">Tára történet</h2>
+        </div>
+        <p className="text-sm text-slate-400 mb-4">
+          Minden tárázás az adott időponttól érvényes — a korábbi mérések nettó értékét nem írja át.
+          Ha törölsz egy eseményt, az akkori „eltolás" visszavonódik a múltra.
+        </p>
+        {tareEvents.length === 0 ? (
+          <p className="text-sm text-slate-400">Még nincs tára-esemény rögzítve.</p>
+        ) : (
+          <table className="w-full text-sm">
+            <thead className="bg-slate-800">
+              <tr>
+                <th className="px-3 py-2 text-left text-slate-300">Mikor</th>
+                <th className="px-3 py-2 text-right text-slate-300">Cél nettó</th>
+                <th className="px-3 py-2 text-right text-slate-300">Eltolás</th>
+                <th className="px-3 py-2 text-left text-slate-300">Megjegyzés</th>
+                <th className="px-3 py-2"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {[...tareEvents].reverse().map(ev => (
+                <tr key={ev.id} className="border-b border-slate-800">
+                  <td className="px-3 py-2">{fmtDate(ev.timestamp)}</td>
+                  <td className="px-3 py-2 text-right font-mono">
+                    {ev.target_net !== null ? `${ev.target_net.toFixed(2)} kg` : '—'}
+                  </td>
+                  <td className="px-3 py-2 text-right font-mono">{ev.offset.toFixed(2)} kg</td>
+                  <td className="px-3 py-2 text-slate-400">{ev.note ?? '—'}</td>
+                  <td className="px-3 py-2 text-right">
+                    <button
+                      className="text-slate-400 hover:text-red-400"
+                      title="Esemény törlése"
+                      onClick={async () => {
+                        if (!confirm('Biztosan törlöd ezt a tára-eseményt? Az utána készült mérések nettó értéke a korábbi offsethez igazodik.')) return
+                        await api.deleteTareEvent(ev.id)
+                        notify('Tára-esemény törölve')
+                        onChange()
+                      }}
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </section>
 
       <section className="card p-5">
@@ -173,27 +228,37 @@ export function SettingsPage({ hive, flowers, settings, onChange, notify }: Prop
 
       <Modal open={tareOpen} onClose={() => setTareOpen(false)} title="Tárázás / fiók hozzáadás">
         <p className="text-sm text-slate-300 mb-4">
-          Add meg, mennyi <b>kell hogy legyen</b> a mérleg súlya jelenleg (pl. új fiók hozzáadása után
-          a rendszer újra a korábbi nettó értéket mutassa).
+          Add meg, mennyi <b>kell hogy legyen</b> a mérleg nettó súlya most (pl. új fiók hozzáadása után
+          a rendszer újra a korábbi nettó értéket mutassa). A múltbeli mérések <b>nem</b> módosulnak,
+          csak ettől a ponttól fog érvényesülni az új eltolás.
         </p>
+        <label className="block text-xs text-slate-400 mb-1">Kívánt nettó súly (kg)</label>
         <input
-          className="input mb-4"
+          className="input mb-3"
           type="number"
           step="0.1"
-          placeholder="Kívánt nettó súly (kg)"
+          placeholder="pl. 43.2"
           value={tareTarget}
           onChange={e => setTareTarget(e.target.value)}
         />
+        <label className="block text-xs text-slate-400 mb-1">Megjegyzés (opcionális)</label>
+        <input
+          className="input mb-4"
+          placeholder="pl. új fiók hozzáadása"
+          value={tareNote}
+          onChange={e => setTareNote(e.target.value)}
+        />
         <div className="flex justify-end gap-2">
-          <button className="btn-ghost" onClick={() => setTareOpen(false)}>Mégse</button>
+          <button className="btn-ghost" onClick={() => { setTareOpen(false); setTareNote('') }}>Mégse</button>
           <button
             className="btn-primary"
             disabled={!tareTarget}
             onClick={async () => {
               if (!confirm(`Tárázás: a nettó súly ${Number(tareTarget).toFixed(2)} kg-ra fog állni. Folytatod?`)) return
-              await api.tare(hive.id, Number(tareTarget))
+              await api.tare(hive.id, Number(tareTarget), tareNote.trim() || undefined)
               setTareOpen(false)
               setTareTarget('')
+              setTareNote('')
               notify('Tárázás mentve')
               onChange()
             }}

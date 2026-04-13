@@ -146,7 +146,7 @@ export function Dashboard({ stats, batteryWarnV, range, setRange }: Props) {
           <h3 className="text-sm uppercase tracking-wider text-slate-400">Súly & hőfok</h3>
           <ChartToggle view={mainView} setView={setMainView} />
         </div>
-        {mainView === 'chart' ? <WeightTempChart data={filtered} /> : <MeasurementsTable data={filtered} />}
+        {mainView === 'chart' ? <WeightTempChart data={filtered} tareEvents={stats.tare_events} /> : <MeasurementsTable data={filtered} />}
       </div>
 
       {/* Daily diff summary */}
