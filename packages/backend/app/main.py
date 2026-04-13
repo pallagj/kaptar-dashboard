@@ -293,7 +293,7 @@ def push_test():
     return {"ok": True, "sent": sent}
 
 
-_SETTINGS_PRIVATE = {"vapid_private_pem", "vapid_public_b64"}
+_SETTINGS_PRIVATE = {"vapid_private_pem", "vapid_private_b64", "vapid_public_b64"}
 
 
 @app.get("/api/settings")
