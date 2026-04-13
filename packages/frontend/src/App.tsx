@@ -1,15 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
-  LayoutDashboard, TrendingUp, Flower2, Settings as SettingsIcon,
+  LayoutDashboard, Flower2, Settings as SettingsIcon,
   RefreshCw, Download,
 } from 'lucide-react'
 import { api, type Flower, type Hive, type Season, type Settings as S, type Stats } from './lib/api'
 import { Dashboard } from './pages/Dashboard'
-import { WeightChange } from './pages/WeightChange'
 import { Seasons } from './pages/Seasons'
 import { SettingsPage } from './pages/Settings'
 
-type Tab = 'dashboard' | 'weight' | 'seasons' | 'settings'
+type Tab = 'dashboard' | 'seasons' | 'settings'
 type Range = '24h' | '7d' | '30d' | 'all'
 
 export default function App() {
@@ -98,7 +97,7 @@ export default function App() {
   const batteryWarnV = settings ? Number(settings.battery_warn_v) : 5.6
 
   return (
-    <div className="min-h-full max-w-6xl mx-auto px-3 sm:px-6 py-4 sm:py-6">
+    <div className="min-h-full max-w-6xl mx-auto px-3 sm:px-6 py-4 sm:py-6 pb-28">
       {/* Header */}
       <header className="flex flex-wrap items-center gap-3 mb-6">
         <div className="flex-1 min-w-0">
@@ -135,47 +134,11 @@ export default function App() {
         </div>
       )}
 
-      {/* Tabs */}
-      <nav className="card flex overflow-x-auto mb-4 p-1">
-        {([
-          { id: 'dashboard', label: 'Műszerfal', icon: <LayoutDashboard size={16} /> },
-          { id: 'weight', label: 'Súlyváltozás', icon: <TrendingUp size={16} /> },
-          { id: 'seasons', label: 'Szezonok', icon: <Flower2 size={16} /> },
-          { id: 'settings', label: 'Beállítások', icon: <SettingsIcon size={16} /> },
-        ] as const).map(t => (
-          <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
-            className={`flex-1 min-w-fit px-3 py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition ${
-              tab === t.id ? 'bg-honey-500 text-slate-900' : 'text-slate-300 hover:bg-slate-700/40'
-            }`}
-          >
-            {t.icon} {t.label}
-          </button>
-        ))}
-      </nav>
-
-      {/* Time range bar (dashboard/weight only) */}
-      {(tab === 'dashboard' || tab === 'weight') && (
-        <div className="flex gap-1 mb-4 card p-1 w-fit">
-          {(['24h', '7d', '30d', 'all'] as Range[]).map(r => (
-            <button
-              key={r}
-              onClick={() => setRange(r)}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium ${
-                range === r ? 'bg-honey-500 text-slate-900' : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              {r === '24h' ? '24 óra' : r === '7d' ? '7 nap' : r === '30d' ? '30 nap' : 'Mind'}
-            </button>
-          ))}
-        </div>
-      )}
-
       {/* Content */}
       <main>
-        {tab === 'dashboard' && stats && <Dashboard stats={stats} batteryWarnV={batteryWarnV} range={range} />}
-        {tab === 'weight' && stats && <WeightChange diffs={stats.daily_diffs} />}
+        {tab === 'dashboard' && stats && (
+          <Dashboard stats={stats} batteryWarnV={batteryWarnV} range={range} setRange={setRange} />
+        )}
         {tab === 'seasons' && (
           <Seasons
             hiveId={hiveId}
@@ -196,9 +159,30 @@ export default function App() {
         )}
       </main>
 
-      <footer className="mt-10 text-center text-xs text-slate-500">
-        Kaptár Dashboard · PWA · Forrás: kaptargsm.hu
-      </footer>
+      {/* Bottom nav (mobile-app style) */}
+      <nav
+        className="fixed bottom-0 inset-x-0 z-40 bg-slate-900/95 backdrop-blur border-t border-slate-700/50"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+      >
+        <div className="max-w-6xl mx-auto flex">
+          {([
+            { id: 'dashboard', label: 'Műszerfal', icon: <LayoutDashboard size={22} /> },
+            { id: 'seasons', label: 'Szezonok', icon: <Flower2 size={22} /> },
+            { id: 'settings', label: 'Beállítások', icon: <SettingsIcon size={22} /> },
+          ] as const).map(t => (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              className={`flex-1 flex flex-col items-center gap-0.5 py-2.5 transition ${
+                tab === t.id ? 'text-honey-400' : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              {t.icon}
+              <span className="text-[11px] font-medium">{t.label}</span>
+            </button>
+          ))}
+        </div>
+      </nav>
     </div>
   )
 }
