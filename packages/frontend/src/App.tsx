@@ -38,7 +38,7 @@ export default function App() {
       setHives(h)
       setFlowers(f)
       setSettings(s)
-      const activeId = id ?? hiveId ?? h[0]?.id ?? ''
+      const activeId = id || hiveId || h[0]?.id || ''
       if (!activeId) return
       if (activeId !== hiveId) setHiveId(activeId)
       const [st, se] = await Promise.all([api.stats(activeId), api.seasons(activeId)])
