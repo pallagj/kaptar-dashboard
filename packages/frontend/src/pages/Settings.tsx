@@ -46,8 +46,8 @@ export function SettingsPage({ hive, flowers, settings, onChange, notify }: Prop
             <h2 className="text-lg font-bold">Kaptár</h2>
             <p className="text-sm text-slate-400">A forrás URL-ről parse-olja a backend a méréseket.</p>
           </div>
-          <button className="btn-ghost shrink-0" onClick={openHiveEdit}>
-            <Pencil size={16} /> Szerkesztés
+          <button className="btn-ghost shrink-0" onClick={openHiveEdit} title="Szerkesztés" aria-label="Szerkesztés">
+            <Pencil size={16} />
           </button>
         </div>
         <dl className="grid sm:grid-cols-2 gap-3 text-sm">
@@ -68,8 +68,8 @@ export function SettingsPage({ hive, flowers, settings, onChange, notify }: Prop
             <h2 className="text-lg font-bold">Szinkron & riasztások</h2>
             <p className="text-sm text-slate-400">A háttérben fut a backend scheduler. A forrás kb. óránként frissül.</p>
           </div>
-          <button className="btn-ghost shrink-0" onClick={openAlertsEdit}>
-            <Pencil size={16} /> Szerkesztés
+          <button className="btn-ghost shrink-0" onClick={openAlertsEdit} title="Szerkesztés" aria-label="Szerkesztés">
+            <Pencil size={16} />
           </button>
         </div>
         <dl className="grid sm:grid-cols-3 gap-3 text-sm">
