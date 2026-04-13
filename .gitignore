@@ -14,3 +14,6 @@ __pycache__/
 # DB
 packages/backend/data.db
 packages/backend/data.db-*
+
+# Claude Code memory (local only)
+memory/
