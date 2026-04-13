@@ -8,57 +8,61 @@ import type { Measurement, TareEvent } from '../lib/api'
 const GRID = '#334155'
 const AXIS = '#94a3b8'
 
+const fmtTick = (t: number) =>
+  new Date(t).toLocaleString('hu-HU', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+
+const fmtTooltipTs = (t: number) =>
+  new Date(t).toLocaleString('hu-HU', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+
 export function WeightTempChart({ data, tareEvents = [] }: { data: Measurement[]; tareEvents?: TareEvent[] }) {
   const chartData = useMemo(
     () => [...data].reverse().map(d => ({
       t: d.timestamp,
-      label: d.date_str.slice(5, 16),
       weight: d.weight,
       temp: d.temp,
     })),
     [data],
   )
-  // Map each tare event to the nearest data-point label (categorical x axis requires category match).
-  const tareMarkers = useMemo(() => {
-    if (!tareEvents.length || !chartData.length) return []
-    const markers: { label: string; target: number | null; note: string | null }[] = []
-    const seen = new Set<string>()
-    for (const ev of tareEvents) {
-      let bestIdx = 0
-      let bestDiff = Infinity
-      for (let i = 0; i < chartData.length; i++) {
-        const diff = Math.abs(chartData[i].t - ev.timestamp)
-        if (diff < bestDiff) { bestDiff = diff; bestIdx = i }
-      }
-      const label = chartData[bestIdx].label
-      if (seen.has(label)) continue
-      seen.add(label)
-      markers.push({ label, target: ev.target_net, note: ev.note })
-    }
-    return markers
-  }, [chartData, tareEvents])
+  const [tMin, tMax] = useMemo(() => {
+    if (!chartData.length) return [0, 0]
+    return [chartData[0].t, chartData[chartData.length - 1].t]
+  }, [chartData])
+  const visibleTareEvents = useMemo(
+    () => tareEvents.filter(ev => ev.timestamp >= tMin && ev.timestamp <= tMax),
+    [tareEvents, tMin, tMax],
+  )
 
   return (
     <ResponsiveContainer width="100%" height={340}>
       <LineChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
         <CartesianGrid strokeDasharray="3 3" stroke={GRID} />
-        <XAxis dataKey="label" stroke={AXIS} fontSize={11} minTickGap={40} />
+        <XAxis
+          dataKey="t"
+          type="number"
+          scale="time"
+          domain={['dataMin', 'dataMax']}
+          stroke={AXIS}
+          fontSize={11}
+          minTickGap={40}
+          tickFormatter={fmtTick}
+        />
         <YAxis yAxisId="left" stroke="#f59e0b" fontSize={11} domain={['auto', 'auto']} />
         <YAxis yAxisId="right" orientation="right" stroke="#38bdf8" fontSize={11} />
         <Tooltip
           contentStyle={{ background: 'rgba(15,23,42,0.95)', border: '1px solid #334155', borderRadius: 8 }}
           labelStyle={{ color: '#cbd5e1' }}
+          labelFormatter={(t: number) => fmtTooltipTs(t)}
         />
         <Legend wrapperStyle={{ color: '#94a3b8' }} />
-        {tareMarkers.map((m, i) => (
+        {visibleTareEvents.map(ev => (
           <ReferenceLine
-            key={i}
+            key={ev.id}
             yAxisId="left"
-            x={m.label}
+            x={ev.timestamp}
             stroke="#a78bfa"
             strokeDasharray="4 3"
             label={{
-              value: m.note ? `⚖ ${m.note}` : '⚖ tára',
+              value: ev.note ? `⚖ ${ev.note}` : '⚖ tára',
               position: 'top',
               fill: '#a78bfa',
               fontSize: 10,
