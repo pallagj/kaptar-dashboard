@@ -51,13 +51,6 @@ input, textarea, [contenteditable="true"] {
   }
 }
 
-/* Touch: engedjük a grafikonnak az ujj-húzást (vízszintes), közben függőleges scroll marad a lapé */
-.recharts-wrapper,
-.recharts-responsive-container,
-.recharts-surface {
-  touch-action: pan-y;
-}
-
 /* Nicer scrollbars */
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }
