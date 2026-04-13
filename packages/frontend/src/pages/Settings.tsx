@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Plus, Trash2, Save, Scale } from 'lucide-react'
+import { Plus, Trash2, Scale, Pencil } from 'lucide-react'
 import { api, type Flower, type Hive, type Settings as S } from '../lib/api'
 import { Modal } from '../components/Modal'
 
@@ -13,82 +13,70 @@ interface Props {
 
 export function SettingsPage({ hive, flowers, settings, onChange, notify }: Props) {
   const [newFlowerName, setNewFlowerName] = useState('')
-  const [syncMin, setSyncMin] = useState(settings.sync_interval_minutes)
-  const [swarmKg, setSwarmKg] = useState(settings.swarm_alert_kg)
-  const [batteryV, setBatteryV] = useState(settings.battery_warn_v)
   const [tareOpen, setTareOpen] = useState(false)
   const [tareTarget, setTareTarget] = useState('')
+
+  const [hiveOpen, setHiveOpen] = useState(false)
   const [hiveName, setHiveName] = useState(hive.name)
   const [hiveUrl, setHiveUrl] = useState(hive.source_url)
+
+  const [alertsOpen, setAlertsOpen] = useState(false)
+  const [syncMin, setSyncMin] = useState(String(settings.sync_interval_minutes))
+  const [swarmKg, setSwarmKg] = useState(String(settings.swarm_alert_kg))
+  const [batteryV, setBatteryV] = useState(String(settings.battery_warn_v))
+
+  function openHiveEdit() {
+    setHiveName(hive.name)
+    setHiveUrl(hive.source_url)
+    setHiveOpen(true)
+  }
+
+  function openAlertsEdit() {
+    setSyncMin(String(settings.sync_interval_minutes))
+    setSwarmKg(String(settings.swarm_alert_kg))
+    setBatteryV(String(settings.battery_warn_v))
+    setAlertsOpen(true)
+  }
 
   return (
     <div className="space-y-6">
       <section className="card p-5">
-        <h2 className="text-lg font-bold mb-1">Kaptár</h2>
-        <p className="text-sm text-slate-400 mb-4">A forrás URL-ről parse-olja a backend a méréseket.</p>
-        <div className="grid sm:grid-cols-2 gap-3">
+        <div className="flex items-start justify-between mb-3 gap-3">
           <div>
-            <label className="block text-xs text-slate-400 mb-1">Név</label>
-            <input className="input" value={hiveName} onChange={e => setHiveName(e.target.value)} />
+            <h2 className="text-lg font-bold">Kaptár</h2>
+            <p className="text-sm text-slate-400">A forrás URL-ről parse-olja a backend a méréseket.</p>
           </div>
-          <div>
-            <label className="block text-xs text-slate-400 mb-1">Forrás URL</label>
-            <input className="input" value={hiveUrl} onChange={e => setHiveUrl(e.target.value)} />
-          </div>
-        </div>
-        <div className="mt-4 flex gap-2 flex-wrap">
-          <button
-            className="btn-primary"
-            onClick={async () => {
-              await api.updateHive(hive.id, { name: hiveName, source_url: hiveUrl })
-              notify('Kaptár frissítve')
-              onChange()
-            }}
-          >
-            <Save size={18} /> Mentés
+          <button className="btn-ghost shrink-0" onClick={openHiveEdit}>
+            <Pencil size={16} /> Szerkesztés
           </button>
+        </div>
+        <dl className="grid sm:grid-cols-2 gap-3 text-sm">
+          <Field label="Név" value={hive.name} />
+          <Field label="Forrás URL" value={hive.source_url} mono />
+          <Field label="Tára-eltolás" value={`${hive.tare_offset.toFixed(2)} kg`} mono />
+        </dl>
+        <div className="mt-4">
           <button className="btn-ghost" onClick={() => setTareOpen(true)}>
             <Scale size={18} /> Tárázás
           </button>
-          <span className="text-sm text-slate-400 self-center">
-            Jelenlegi tára-eltolás: <span className="text-slate-200 font-mono">{hive.tare_offset.toFixed(2)} kg</span>
-          </span>
         </div>
       </section>
 
       <section className="card p-5">
-        <h2 className="text-lg font-bold mb-1">Szinkron & riasztások</h2>
-        <p className="text-sm text-slate-400 mb-4">A háttérben fut a backend scheduler. A forrás kb. óránként frissül.</p>
-        <div className="grid sm:grid-cols-3 gap-3">
+        <div className="flex items-start justify-between mb-3 gap-3">
           <div>
-            <label className="block text-xs text-slate-400 mb-1">Szinkron gyakoriság (perc)</label>
-            <input className="input" type="number" min={5} value={syncMin} onChange={e => setSyncMin(e.target.value)} />
+            <h2 className="text-lg font-bold">Szinkron & riasztások</h2>
+            <p className="text-sm text-slate-400">A háttérben fut a backend scheduler. A forrás kb. óránként frissül.</p>
           </div>
-          <div>
-            <label className="block text-xs text-slate-400 mb-1">Rajzás-riasztás küszöb (kg)</label>
-            <input className="input" type="number" step="0.1" value={swarmKg} onChange={e => setSwarmKg(e.target.value)} />
-          </div>
-          <div>
-            <label className="block text-xs text-slate-400 mb-1">Akku figyelmeztetés (V)</label>
-            <input className="input" type="number" step="0.1" value={batteryV} onChange={e => setBatteryV(e.target.value)} />
-          </div>
-        </div>
-        <div className="mt-4">
-          <button
-            className="btn-primary"
-            onClick={async () => {
-              await api.updateSettings({
-                sync_interval_minutes: Number(syncMin),
-                swarm_alert_kg: Number(swarmKg),
-                battery_warn_v: Number(batteryV),
-              })
-              notify('Beállítások mentve')
-              onChange()
-            }}
-          >
-            <Save size={18} /> Mentés
+          <button className="btn-ghost shrink-0" onClick={openAlertsEdit}>
+            <Pencil size={16} /> Szerkesztés
           </button>
         </div>
+        <dl className="grid sm:grid-cols-3 gap-3 text-sm">
+          <Field label="Szinkron gyakoriság" value={`${settings.sync_interval_minutes} perc`} mono />
+          <Field label="Rajzás-riasztás küszöb" value={`${settings.swarm_alert_kg} kg`} mono />
+          <Field label="Akku figyelmeztetés" value={`${settings.battery_warn_v} V`} mono />
+        </dl>
       </section>
 
       <section className="card p-5">
@@ -122,7 +110,7 @@ export function SettingsPage({ hive, flowers, settings, onChange, notify }: Prop
               <button
                 className="text-slate-400 hover:text-red-400"
                 onClick={async () => {
-                  if (!confirm(`Törlöd: ${f.name}?`)) return
+                  if (!confirm(`Biztosan törlöd a(z) "${f.name}" virágot?`)) return
                   await api.deleteFlower(f.id)
                   notify('Törölve')
                   onChange()
@@ -134,6 +122,54 @@ export function SettingsPage({ hive, flowers, settings, onChange, notify }: Prop
           ))}
         </ul>
       </section>
+
+      <Modal open={hiveOpen} onClose={() => setHiveOpen(false)} title="Kaptár szerkesztése">
+        <label className="block text-xs text-slate-400 mb-1">Név</label>
+        <input className="input mb-3" value={hiveName} onChange={e => setHiveName(e.target.value)} />
+        <label className="block text-xs text-slate-400 mb-1">Forrás URL</label>
+        <input className="input mb-4" value={hiveUrl} onChange={e => setHiveUrl(e.target.value)} />
+        <div className="flex justify-end gap-2">
+          <button className="btn-ghost" onClick={() => setHiveOpen(false)}>Mégse</button>
+          <button
+            className="btn-primary"
+            onClick={async () => {
+              await api.updateHive(hive.id, { name: hiveName, source_url: hiveUrl })
+              setHiveOpen(false)
+              notify('Kaptár frissítve')
+              onChange()
+            }}
+          >
+            Mentés
+          </button>
+        </div>
+      </Modal>
+
+      <Modal open={alertsOpen} onClose={() => setAlertsOpen(false)} title="Szinkron & riasztások szerkesztése">
+        <label className="block text-xs text-slate-400 mb-1">Szinkron gyakoriság (perc)</label>
+        <input className="input mb-3" type="number" min={5} value={syncMin} onChange={e => setSyncMin(e.target.value)} />
+        <label className="block text-xs text-slate-400 mb-1">Rajzás-riasztás küszöb (kg)</label>
+        <input className="input mb-3" type="number" step="0.1" value={swarmKg} onChange={e => setSwarmKg(e.target.value)} />
+        <label className="block text-xs text-slate-400 mb-1">Akku figyelmeztetés (V)</label>
+        <input className="input mb-4" type="number" step="0.1" value={batteryV} onChange={e => setBatteryV(e.target.value)} />
+        <div className="flex justify-end gap-2">
+          <button className="btn-ghost" onClick={() => setAlertsOpen(false)}>Mégse</button>
+          <button
+            className="btn-primary"
+            onClick={async () => {
+              await api.updateSettings({
+                sync_interval_minutes: Number(syncMin),
+                swarm_alert_kg: Number(swarmKg),
+                battery_warn_v: Number(batteryV),
+              })
+              setAlertsOpen(false)
+              notify('Beállítások mentve')
+              onChange()
+            }}
+          >
+            Mentés
+          </button>
+        </div>
+      </Modal>
 
       <Modal open={tareOpen} onClose={() => setTareOpen(false)} title="Tárázás / fiók hozzáadás">
         <p className="text-sm text-slate-300 mb-4">
@@ -154,6 +190,7 @@ export function SettingsPage({ hive, flowers, settings, onChange, notify }: Prop
             className="btn-primary"
             disabled={!tareTarget}
             onClick={async () => {
+              if (!confirm(`Tárázás: a nettó súly ${Number(tareTarget).toFixed(2)} kg-ra fog állni. Folytatod?`)) return
               await api.tare(hive.id, Number(tareTarget))
               setTareOpen(false)
               setTareTarget('')
@@ -165,6 +202,15 @@ export function SettingsPage({ hive, flowers, settings, onChange, notify }: Prop
           </button>
         </div>
       </Modal>
+    </div>
+  )
+}
+
+function Field({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+  return (
+    <div>
+      <dt className="text-xs text-slate-400 mb-1">{label}</dt>
+      <dd className={`text-slate-200 break-all ${mono ? 'font-mono' : ''}`}>{value}</dd>
     </div>
   )
 }

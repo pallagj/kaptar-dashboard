@@ -130,6 +130,7 @@ export function Seasons({ hiveId, seasons, flowers, onChange, notify }: Props) {
                           className="text-slate-400 hover:text-amber-400"
                           title="Szezon lezárása"
                           onClick={async () => {
+                            if (!confirm(`Biztosan lezárod a(z) "${s.flower_name ?? s.flower_id}" szezont?`)) return
                             await api.closeSeason(hiveId)
                             notify('Szezon lezárva')
                             onChange()

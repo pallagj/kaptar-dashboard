@@ -4,6 +4,9 @@ import re
 import logging
 from datetime import datetime
 from typing import List, Dict
+from zoneinfo import ZoneInfo
+
+BUDAPEST_TZ = ZoneInfo("Europe/Budapest")
 
 import httpx
 from bs4 import BeautifulSoup
@@ -42,7 +45,7 @@ def parse_html(html: str) -> List[Dict]:
         if weight < 5.0:
             continue
         y, mo, d, h, mi, s = map(int, m.groups())
-        ts = int(datetime(y, mo, d, h, mi, s).timestamp() * 1000)
+        ts = int(datetime(y, mo, d, h, mi, s, tzinfo=BUDAPEST_TZ).timestamp() * 1000)
         out.append({
             "timestamp": ts,
             "date_str": date_str,
