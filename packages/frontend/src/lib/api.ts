@@ -59,6 +59,7 @@ export interface Stats {
   active_season: ActiveSeason | null
   tare_offset: number
   tare_events: TareEvent[]
+  latest_raw: number | null
 }
 
 export interface Hive {
@@ -119,11 +120,12 @@ export const api = {
     request<{ ok: boolean }>(`/api/seasons/close?hive_id=${encodeURIComponent(hive_id)}`, { method: 'POST' }),
   deleteSeason: (id: number) =>
     request<{ ok: boolean }>(`/api/seasons/${id}`, { method: 'DELETE' }),
-  tare: (hive_id: string, target_net_kg: number, note?: string) =>
-    request<{ ok: boolean; tare_offset: number }>(
-      `/api/tare?hive_id=${encodeURIComponent(hive_id)}&target_net_kg=${target_net_kg}${note ? `&note=${encodeURIComponent(note)}` : ''}`,
-      { method: 'POST' },
-    ),
+  tare: (hive_id: string, target_net_kg: number, current_raw_kg?: number, note?: string) => {
+    const params = new URLSearchParams({ hive_id, target_net_kg: String(target_net_kg) })
+    if (current_raw_kg !== undefined) params.set('current_raw_kg', String(current_raw_kg))
+    if (note) params.set('note', note)
+    return request<{ ok: boolean; tare_offset: number }>(`/api/tare?${params}`, { method: 'POST' })
+  },
   tareEvents: (hive_id: string) =>
     request<TareEvent[]>(`/api/tare-events?hive_id=${encodeURIComponent(hive_id)}`),
   deleteTareEvent: (id: number) =>

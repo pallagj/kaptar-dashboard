@@ -227,9 +227,11 @@ def delete_season(season_id: int):
 
 
 @app.post("/api/tare")
-def tare(hive_id: str, target_net_kg: float, note: Optional[str] = None):
-    """Rögzít egy új tára-eseményt a mostani időpontra, úgy hogy a legutolsó mérés
-    nettóban pont `target_net_kg`-ot mutasson. A korábbi mérések offsetje nem változik."""
+def tare(hive_id: str, target_net_kg: float, current_raw_kg: Optional[float] = None, note: Optional[str] = None):
+    """Rögzít egy új tára-eseményt a mostani időpontra. Az offsetet a megadott
+    `current_raw_kg` (a mérleg aktuális bruttó értéke) és a `target_net_kg`
+    különbségeként számolja. Ha nincs megadva, az utolsó mért bruttó érték.
+    A korábbi mérések offsetje változatlan marad."""
     now = int(time.time() * 1000)
     with db() as c:
         row = c.execute(
@@ -238,7 +240,8 @@ def tare(hive_id: str, target_net_kg: float, note: Optional[str] = None):
         ).fetchone()
         if not row:
             raise HTTPException(400, "Nincs mért adat.")
-        offset = round(row["weight"] - target_net_kg, 2)
+        raw = float(current_raw_kg) if current_raw_kg is not None else float(row["weight"])
+        offset = round(raw - target_net_kg, 2)
         event_ts = max(int(row["timestamp"]) + 1, now)
         c.execute(
             "INSERT INTO tare_events(hive_id,timestamp,offset,target_net,note,created_at) "
@@ -288,6 +291,7 @@ def stats(hive_id: str = "J0102466"):
             (hive_id,),
         ).fetchall()
         rows = [dict(r) for r in rows]
+        raw_latest = rows[0]["weight"] if rows else None
         apply_offsets(events, rows)
         tare_offset = float(events[-1]["offset"]) if events else 0.0
 
@@ -298,10 +302,11 @@ def stats(hive_id: str = "J0102466"):
         active = dict(active) if active else None
 
     if not rows:
-        return {"latest": None, "history": [], "active_season": active, "tare_offset": tare_offset, "tare_events": events}
+        return {"latest": None, "latest_raw": None, "history": [], "active_season": active, "tare_offset": tare_offset, "tare_events": events}
 
     latest = rows[0]
     now_ts = latest["timestamp"]
+    latest_raw = round(raw_latest, 2) if raw_latest is not None else None
     day_ms = 86400 * 1000
 
     def find_at(age_ms):
@@ -365,4 +370,5 @@ def stats(hive_id: str = "J0102466"):
         "active_season": active,
         "tare_offset": tare_offset,
         "tare_events": events,
+        "latest_raw": latest_raw,
     }

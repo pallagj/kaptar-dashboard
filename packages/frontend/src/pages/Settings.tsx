@@ -9,15 +9,24 @@ interface Props {
   flowers: Flower[]
   settings: S
   tareEvents: TareEvent[]
+  latestRaw: number | null
   onChange: () => void
   notify: (m: string) => void
 }
 
-export function SettingsPage({ hive, flowers, settings, tareEvents, onChange, notify }: Props) {
+export function SettingsPage({ hive, flowers, settings, tareEvents, latestRaw, onChange, notify }: Props) {
   const [newFlowerName, setNewFlowerName] = useState('')
   const [tareOpen, setTareOpen] = useState(false)
+  const [tareRaw, setTareRaw] = useState('')
   const [tareTarget, setTareTarget] = useState('')
   const [tareNote, setTareNote] = useState('')
+
+  function openTare() {
+    setTareRaw(latestRaw !== null ? latestRaw.toFixed(2) : '')
+    setTareTarget('')
+    setTareNote('')
+    setTareOpen(true)
+  }
 
   const [hiveOpen, setHiveOpen] = useState(false)
   const [hiveName, setHiveName] = useState(hive.name)
@@ -59,7 +68,7 @@ export function SettingsPage({ hive, flowers, settings, tareEvents, onChange, no
           <Field label="Tára-eltolás" value={`${hive.tare_offset.toFixed(2)} kg`} mono />
         </dl>
         <div className="mt-4">
-          <button className="btn-ghost" onClick={() => setTareOpen(true)}>
+          <button className="btn-ghost" onClick={openTare}>
             <Scale size={18} /> Tárázás
           </button>
         </div>
@@ -228,19 +237,35 @@ export function SettingsPage({ hive, flowers, settings, tareEvents, onChange, no
 
       <Modal open={tareOpen} onClose={() => setTareOpen(false)} title="Tárázás / fiók hozzáadás">
         <p className="text-sm text-slate-300 mb-4">
-          Add meg, mennyi <b>kell hogy legyen</b> a mérleg nettó súlya most (pl. új fiók hozzáadása után
-          a rendszer újra a korábbi nettó értéket mutassa). A múltbeli mérések <b>nem</b> módosulnak,
-          csak ettől a ponttól fog érvényesülni az új eltolás.
+          A múltbeli mérések <b>nem</b> módosulnak — az új eltolás innentől érvényes.
+          Ha a mérleg azóta változott hogy az utolsó adat beérkezett (pl. most raktál rá fiókot),
+          írd át a „Jelenlegi bruttó"-t arra amit tényleg kijelez a mérleg.
         </p>
+        <label className="block text-xs text-slate-400 mb-1">
+          Jelenlegi bruttó (kg) {latestRaw !== null && <span className="text-slate-500">— utolsó mért: {latestRaw.toFixed(2)}</span>}
+        </label>
+        <input
+          className="input mb-3"
+          type="number"
+          step="0.1"
+          placeholder="mit mutat most a mérleg"
+          value={tareRaw}
+          onChange={e => setTareRaw(e.target.value)}
+        />
         <label className="block text-xs text-slate-400 mb-1">Kívánt nettó súly (kg)</label>
         <input
           className="input mb-3"
           type="number"
           step="0.1"
-          placeholder="pl. 43.2"
+          placeholder="mennyi legyen kijelezve"
           value={tareTarget}
           onChange={e => setTareTarget(e.target.value)}
         />
+        {tareRaw && tareTarget && (
+          <p className="text-xs text-slate-400 mb-3">
+            Új eltolás: <span className="font-mono text-slate-200">{(Number(tareRaw) - Number(tareTarget)).toFixed(2)} kg</span>
+          </p>
+        )}
         <label className="block text-xs text-slate-400 mb-1">Megjegyzés (opcionális)</label>
         <input
           className="input mb-4"
@@ -249,16 +274,16 @@ export function SettingsPage({ hive, flowers, settings, tareEvents, onChange, no
           onChange={e => setTareNote(e.target.value)}
         />
         <div className="flex justify-end gap-2">
-          <button className="btn-ghost" onClick={() => { setTareOpen(false); setTareNote('') }}>Mégse</button>
+          <button className="btn-ghost" onClick={() => setTareOpen(false)}>Mégse</button>
           <button
             className="btn-primary"
-            disabled={!tareTarget}
+            disabled={!tareTarget || !tareRaw}
             onClick={async () => {
-              if (!confirm(`Tárázás: a nettó súly ${Number(tareTarget).toFixed(2)} kg-ra fog állni. Folytatod?`)) return
-              await api.tare(hive.id, Number(tareTarget), tareNote.trim() || undefined)
+              const raw = Number(tareRaw)
+              const tgt = Number(tareTarget)
+              if (!confirm(`Tárázás: bruttó ${raw.toFixed(2)} kg → nettó ${tgt.toFixed(2)} kg (eltolás ${(raw - tgt).toFixed(2)} kg). Folytatod?`)) return
+              await api.tare(hive.id, tgt, raw, tareNote.trim() || undefined)
               setTareOpen(false)
-              setTareTarget('')
-              setTareNote('')
               notify('Tárázás mentve')
               onChange()
             }}

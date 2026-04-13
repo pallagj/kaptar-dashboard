@@ -155,6 +155,7 @@ export default function App() {
             flowers={flowers}
             settings={settings}
             tareEvents={stats?.tare_events ?? []}
+            latestRaw={stats?.latest_raw ?? null}
             onChange={() => loadAll(hiveId)}
             notify={notify}
           />
