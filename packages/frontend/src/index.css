@@ -51,6 +51,11 @@ input, textarea, [contenteditable="true"] {
   }
 }
 
+/* Modal nyitva → bújtassuk el a tálcát, hogy ne ugorjon a viewport tetejére picker megnyitásakor */
+body:has(.modal-root) .bottom-nav {
+  display: none;
+}
+
 /* Nicer scrollbars */
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }

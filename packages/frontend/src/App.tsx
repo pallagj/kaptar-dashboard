@@ -161,7 +161,7 @@ export default function App() {
 
       {/* Bottom nav (mobile-app style) */}
       <nav
-        className="fixed bottom-0 inset-x-0 z-40 bg-slate-900/95 backdrop-blur border-t border-slate-700/50"
+        className="bottom-nav fixed bottom-0 inset-x-0 z-40 bg-slate-900/95 backdrop-blur border-t border-slate-700/50"
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
         <div className="max-w-6xl mx-auto flex">

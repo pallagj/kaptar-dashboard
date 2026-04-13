@@ -6,7 +6,7 @@ export function Modal({
 }: { open: boolean; title: string; onClose: () => void; children: ReactNode }) {
   if (!open) return null
   return (
-    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
+    <div className="modal-root fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
       <div
         className="card w-full max-w-md max-h-[90vh] overflow-auto"
         onClick={e => e.stopPropagation()}
