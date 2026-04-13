@@ -45,6 +45,13 @@ CREATE TABLE IF NOT EXISTS settings (
     value TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS push_subscriptions (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    endpoint    TEXT NOT NULL UNIQUE,
+    keys_json   TEXT NOT NULL,
+    created_at  INTEGER NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS tare_events (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
     hive_id    TEXT NOT NULL,

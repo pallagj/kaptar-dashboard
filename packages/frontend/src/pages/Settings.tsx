@@ -1,8 +1,9 @@
-import { useState } from 'react'
-import { Plus, Trash2, Scale, Pencil, History } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Plus, Trash2, Scale, Pencil, History, Bell, BellOff } from 'lucide-react'
 import { api, type Flower, type Hive, type Settings as S, type TareEvent } from '../lib/api'
 import { Modal } from '../components/Modal'
 import { fmtDate } from '../lib/format'
+import { getPushStatus, subscribe as pushSubscribe, unsubscribe as pushUnsubscribe } from '../lib/push'
 
 interface Props {
   hive: Hive
@@ -27,6 +28,11 @@ export function SettingsPage({ hive, flowers, settings, tareEvents, latestRaw, o
     setTareNote('')
     setTareOpen(true)
   }
+
+  const [pushStatus, setPushStatus] = useState<Awaited<ReturnType<typeof getPushStatus>> | 'loading'>('loading')
+  const [pushBusy, setPushBusy] = useState(false)
+  useEffect(() => { getPushStatus().then(setPushStatus) }, [])
+  async function refreshPushStatus() { setPushStatus(await getPushStatus()) }
 
   const [hiveOpen, setHiveOpen] = useState(false)
   const [hiveName, setHiveName] = useState(hive.name)
@@ -141,6 +147,77 @@ export function SettingsPage({ hive, flowers, settings, tareEvents, latestRaw, o
           <Field label="Rajzás-riasztás küszöb" value={`${settings.swarm_alert_kg} kg`} mono />
           <Field label="Akku figyelmeztetés" value={`${settings.battery_warn_v} V`} mono />
         </dl>
+      </section>
+
+      <section className="card p-5">
+        <div className="flex items-center gap-2 mb-1">
+          <Bell size={18} className="text-slate-400" />
+          <h2 className="text-lg font-bold">Értesítések</h2>
+        </div>
+        <p className="text-sm text-slate-400 mb-4">
+          Push értesítés a telefonra, ha a scraper rajzás-gyanús súlyesést érzékel.
+          iOS-en csak akkor működik, ha a webapp a kezdőképernyőre telepítve van (✓).
+        </p>
+        {pushStatus === 'loading' && <p className="text-sm text-slate-400">Állapot lekérdezése…</p>}
+        {pushStatus === 'unsupported' && (
+          <p className="text-sm text-amber-300">A böngésző nem támogatja a push értesítéseket.</p>
+        )}
+        {pushStatus === 'denied' && (
+          <p className="text-sm text-red-300">
+            Az értesítések letiltva. A rendszer beállításaiban engedélyezd újra.
+          </p>
+        )}
+        {(pushStatus === 'default' || pushStatus === 'not_subscribed') && (
+          <button
+            className="btn-primary"
+            disabled={pushBusy}
+            onClick={async () => {
+              setPushBusy(true)
+              try {
+                await pushSubscribe()
+                notify('Értesítések bekapcsolva')
+                await refreshPushStatus()
+              } catch (e: any) {
+                notify('Hiba: ' + e.message)
+              } finally { setPushBusy(false) }
+            }}
+          >
+            <Bell size={18} /> Értesítések bekapcsolása
+          </button>
+        )}
+        {pushStatus === 'subscribed' && (
+          <div className="flex flex-wrap gap-2">
+            <span className="text-sm text-emerald-400 self-center">● Bekapcsolva</span>
+            <button
+              className="btn-ghost"
+              disabled={pushBusy}
+              onClick={async () => {
+                try {
+                  const res = await api.pushTest()
+                  notify(res.sent > 0 ? 'Teszt üzenet elküldve' : 'Nincs aktív feliratkozás')
+                } catch (e: any) { notify('Hiba: ' + e.message) }
+              }}
+            >
+              Teszt értesítés
+            </button>
+            <button
+              className="btn-ghost"
+              disabled={pushBusy}
+              onClick={async () => {
+                if (!confirm('Biztosan kikapcsolod a push értesítéseket?')) return
+                setPushBusy(true)
+                try {
+                  await pushUnsubscribe()
+                  notify('Értesítések kikapcsolva')
+                  await refreshPushStatus()
+                } catch (e: any) { notify('Hiba: ' + e.message) }
+                finally { setPushBusy(false) }
+              }}
+            >
+              <BellOff size={18} /> Kikapcsolás
+            </button>
+          </div>
+        )}
       </section>
 
       <section className="card p-5">

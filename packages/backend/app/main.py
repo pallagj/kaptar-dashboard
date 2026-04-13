@@ -12,6 +12,7 @@ from .db import db, init_db, get_setting, set_setting
 from .scraper import sync_all
 from .scheduler import start_scheduler, reschedule
 from .tare import list_events as tare_list, effective_offset, apply_offsets
+from . import push
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
@@ -264,11 +265,42 @@ def delete_tare_event(event_id: int):
     return {"ok": True}
 
 
+class PushSubscribeIn(BaseModel):
+    endpoint: str
+    keys: dict
+
+
+@app.get("/api/push/vapid-public-key")
+def push_vapid_public_key():
+    return {"key": push.public_key_b64()}
+
+
+@app.post("/api/push/subscribe")
+def push_subscribe(sub: PushSubscribeIn):
+    push.add_subscription(sub.endpoint, sub.keys)
+    return {"ok": True}
+
+
+@app.post("/api/push/unsubscribe")
+def push_unsubscribe(sub: PushSubscribeIn):
+    push.remove_subscription(sub.endpoint)
+    return {"ok": True}
+
+
+@app.post("/api/push/test")
+def push_test():
+    sent = push.send("🐝 Teszt értesítés", "Ha ezt látod, működik a push.", tag="test")
+    return {"ok": True, "sent": sent}
+
+
+_SETTINGS_PRIVATE = {"vapid_private_pem", "vapid_public_b64"}
+
+
 @app.get("/api/settings")
 def get_settings():
     with db() as c:
         rows = c.execute("SELECT key,value FROM settings").fetchall()
-        return {r["key"]: r["value"] for r in rows}
+        return {r["key"]: r["value"] for r in rows if r["key"] not in _SETTINGS_PRIVATE}
 
 
 @app.patch("/api/settings")

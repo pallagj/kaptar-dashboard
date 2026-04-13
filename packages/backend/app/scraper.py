@@ -71,7 +71,7 @@ async def fetch_and_store(hive_id: str, url: str) -> int:
     if not rows:
         return 0
 
-    inserted = 0
+    inserted_ts: list[int] = []
     with db() as c:
         for row in rows:
             cur = c.execute(
@@ -79,9 +79,50 @@ async def fetch_and_store(hive_id: str, url: str) -> int:
                 (row["timestamp"], row["date_str"], row["weight"], row["battery"], row["temp"], hive_id),
             )
             if cur.rowcount:
-                inserted += 1
-    log.info("hive %s: fetched %d rows, inserted %d new", hive_id, len(rows), inserted)
-    return inserted
+                inserted_ts.append(row["timestamp"])
+    log.info("hive %s: fetched %d rows, inserted %d new", hive_id, len(rows), len(inserted_ts))
+
+    if inserted_ts:
+        try:
+            _check_alerts_and_notify(hive_id, inserted_ts)
+        except Exception as e:
+            log.warning("alert check failed: %s", e)
+
+    return len(inserted_ts)
+
+
+def _check_alerts_and_notify(hive_id: str, new_timestamps: list[int]) -> None:
+    """For each newly-inserted measurement, check if it forms a sharp drop against the
+    immediately-preceding row. If yes, send a push notification."""
+    from .db import get_setting
+    from .tare import list_events as tare_list, apply_offsets
+    from . import push
+
+    threshold = float(get_setting("swarm_alert_kg", "1.5") or "1.5")
+    MAX_GAP_MS = 6 * 3600 * 1000  # only meaningful if prev measurement was within 6h
+
+    with db() as c:
+        events = tare_list(c, hive_id)
+        for ts in sorted(new_timestamps, reverse=True):
+            # latest row at or before `ts`, and the one before it
+            pair = c.execute(
+                "SELECT timestamp,date_str,weight FROM measurements WHERE hive_id=? AND timestamp<=? "
+                "ORDER BY timestamp DESC LIMIT 2",
+                (hive_id, ts),
+            ).fetchall()
+            if len(pair) < 2:
+                continue
+            rows = [dict(p) for p in pair]
+            apply_offsets(events, rows)  # net
+            latest, prev = rows[0], rows[1]
+            gap = latest["timestamp"] - prev["timestamp"]
+            if gap > MAX_GAP_MS:
+                continue
+            drop = prev["weight"] - latest["weight"]
+            if drop >= threshold:
+                title = "🐝 Lehetséges rajzás!"
+                body = f"{latest['date_str']}: −{drop:.2f} kg egyetlen mérés alatt"
+                push.send(title, body, tag=f"swarm-{ts}", url="/")
 
 
 async def sync_all() -> Dict[str, int]:

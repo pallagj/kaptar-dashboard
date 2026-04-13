@@ -130,6 +130,12 @@ export const api = {
     request<TareEvent[]>(`/api/tare-events?hive_id=${encodeURIComponent(hive_id)}`),
   deleteTareEvent: (id: number) =>
     request<{ ok: boolean }>(`/api/tare-events/${id}`, { method: 'DELETE' }),
+  pushVapidKey: () => request<{ key: string }>('/api/push/vapid-public-key'),
+  pushSubscribe: (sub: { endpoint: string; keys: Record<string, string> }) =>
+    request<{ ok: boolean }>('/api/push/subscribe', { method: 'POST', body: JSON.stringify(sub) }),
+  pushUnsubscribe: (sub: { endpoint: string; keys: Record<string, string> }) =>
+    request<{ ok: boolean }>('/api/push/unsubscribe', { method: 'POST', body: JSON.stringify(sub) }),
+  pushTest: () => request<{ ok: boolean; sent: number }>('/api/push/test', { method: 'POST' }),
   settings: () => request<Settings>('/api/settings'),
   updateSettings: (s: Partial<Record<keyof Settings, number>>) =>
     request<{ ok: boolean }>('/api/settings', { method: 'PATCH', body: JSON.stringify(s) }),
