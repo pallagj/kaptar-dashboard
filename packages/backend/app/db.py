@@ -95,6 +95,8 @@ def init_db():
             c.execute("INSERT OR IGNORE INTO settings(key,value) VALUES(?,?)", (k, v))
         for fid, name in DEFAULT_FLOWERS:
             c.execute("INSERT OR IGNORE INTO flowers(id,name) VALUES(?,?)", (fid, name))
+        # Takarítás: szenzor-hibás mérések (súly < 5 kg) kidobása
+        c.execute("DELETE FROM measurements WHERE weight < 5.0")
 
 
 def get_setting(key: str, default: str | None = None) -> str | None:

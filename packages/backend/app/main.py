@@ -300,7 +300,11 @@ def stats(hive_id: str = "J0102466"):
             by_day[day] = r
     days_sorted = sorted(by_day.values(), key=lambda r: r["timestamp"])
     daily_diffs = []
+    MAX_GAP_MS = 2 * day_ms  # Ha több mint 2 nap szünet van, nem értelmes napi diff
     for i in range(1, len(days_sorted)):
+        gap = days_sorted[i]["timestamp"] - days_sorted[i - 1]["timestamp"]
+        if gap > MAX_GAP_MS:
+            continue
         daily_diffs.append({
             "date": days_sorted[i]["date_str"][:10],
             "diff": round(days_sorted[i]["weight"] - days_sorted[i - 1]["weight"], 2),
@@ -310,7 +314,11 @@ def stats(hive_id: str = "J0102466"):
     # Swarm detection: sharp single-measurement drop
     swarm_threshold = float(get_setting("swarm_alert_kg", "1.5") or "1.5")
     alerts = []
+    MAX_ALERT_GAP_MS = 6 * 3600 * 1000  # Max 6 óra szünet két mérés között
     for i in range(len(rows) - 1):
+        gap = rows[i]["timestamp"] - rows[i + 1]["timestamp"]
+        if gap > MAX_ALERT_GAP_MS:
+            continue
         diff = rows[i]["weight"] - rows[i + 1]["weight"]
         if diff <= -swarm_threshold:
             alerts.append({

@@ -1,8 +1,10 @@
 import { useMemo, useState } from 'react'
-import { Scale, Thermometer, TrendingUp, Flower2, AlertTriangle, BarChart3, Table as TableIcon } from 'lucide-react'
+import { Scale, Thermometer, TrendingUp, Flower2, AlertTriangle } from 'lucide-react'
 import { StatCard } from '../components/StatCard'
 import { BatteryGauge } from '../components/BatteryGauge'
-import { WeightTempChart, WeightAreaChart, DailyDiffChart } from '../components/Charts'
+import { WeightTempChart, DailyDiffChart } from '../components/Charts'
+import { MeasurementsTable } from '../components/DataTable'
+import { ChartToggle } from '../components/ChartToggle'
 import type { Stats, Measurement } from '../lib/api'
 import { fmtDate, fmtSigned, daysBetween } from '../lib/format'
 
@@ -16,7 +18,9 @@ interface Props {
 }
 
 export function Dashboard({ stats, batteryWarnV, range, setRange }: Props) {
+  const [mainView, setMainView] = useState<'chart' | 'table'>('chart')
   const [diffView, setDiffView] = useState<'chart' | 'table'>('chart')
+
   const filtered = useMemo<Measurement[]>(() => {
     if (!stats.latest) return []
     if (range === 'all') return stats.history
@@ -24,6 +28,12 @@ export function Dashboard({ stats, batteryWarnV, range, setRange }: Props) {
     const cutoff = stats.latest.timestamp - hours * 3600 * 1000
     return stats.history.filter(m => m.timestamp >= cutoff)
   }, [stats, range])
+
+  const filteredDiffs = useMemo(() => {
+    if (range === 'all') return stats.daily_diffs
+    const days = range === '24h' ? 2 : range === '7d' ? 7 : 30
+    return stats.daily_diffs.slice(-days)
+  }, [stats.daily_diffs, range])
 
   if (!stats.latest) {
     return (
@@ -34,16 +44,7 @@ export function Dashboard({ stats, batteryWarnV, range, setRange }: Props) {
   }
 
   const active = stats.active_season
-  const activeGain = active
-    ? stats.latest.weight - active.start_weight
-    : null
-
-  const filteredDiffs = useMemo(() => {
-    if (range === 'all') return stats.daily_diffs
-    const days = range === '24h' ? 2 : range === '7d' ? 7 : 30
-    return stats.daily_diffs.slice(-days)
-  }, [stats.daily_diffs, range])
-
+  const activeGain = active ? stats.latest.weight - active.start_weight : null
   const totalDiff = filteredDiffs.reduce((a, d) => a + d.diff, 0)
   const positives = filteredDiffs.filter(d => d.diff > 0)
   const negatives = filteredDiffs.filter(d => d.diff < 0)
@@ -66,6 +67,7 @@ export function Dashboard({ stats, batteryWarnV, range, setRange }: Props) {
           ))}
         </div>
       </div>
+
       {/* Active season header */}
       <div className="card p-5 bg-gradient-to-br from-honey-900/40 via-slate-800/60 to-slate-900/60 border-honey-700/30">
         <div className="flex items-center gap-4 flex-wrap">
@@ -138,18 +140,16 @@ export function Dashboard({ stats, batteryWarnV, range, setRange }: Props) {
         </div>
       )}
 
-      {/* Charts */}
+      {/* Main chart (weight + temp) */}
       <div className="card p-4 sm:p-5">
-        <h3 className="text-sm uppercase tracking-wider text-slate-400 mb-3">Súly & hőfok trend</h3>
-        <WeightTempChart data={filtered} />
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm uppercase tracking-wider text-slate-400">Súly & hőfok</h3>
+          <ChartToggle view={mainView} setView={setMainView} />
+        </div>
+        {mainView === 'chart' ? <WeightTempChart data={filtered} /> : <MeasurementsTable data={filtered} />}
       </div>
 
-      <div className="card p-4 sm:p-5">
-        <h3 className="text-sm uppercase tracking-wider text-slate-400 mb-3">Súlytrend (terület)</h3>
-        <WeightAreaChart data={filtered} />
-      </div>
-
-      {/* Daily weight change */}
+      {/* Daily diff summary */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <Mini label="Időszak hozam" value={`${totalDiff >= 0 ? '+' : ''}${totalDiff.toFixed(2)} kg`} tone={totalDiff >= 0 ? 'pos' : 'neg'} />
         <Mini label="Napi átlag" value={filteredDiffs.length ? `${(totalDiff / filteredDiffs.length).toFixed(2)} kg` : '—'} tone={totalDiff >= 0 ? 'pos' : 'neg'} />
@@ -157,23 +157,11 @@ export function Dashboard({ stats, batteryWarnV, range, setRange }: Props) {
         <Mini label="Fogyó napok" value={negatives.length.toString()} tone="neg" />
       </div>
 
+      {/* Daily diff chart/table */}
       <div className="card p-4 sm:p-5">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm uppercase tracking-wider text-slate-400">Napi súlyváltozás</h3>
-          <div className="inline-flex rounded-lg border border-slate-700 p-1 bg-slate-800">
-            <button
-              onClick={() => setDiffView('chart')}
-              className={`px-3 py-1.5 rounded text-xs flex items-center gap-1.5 ${diffView === 'chart' ? 'bg-honey-500 text-slate-900' : 'text-slate-300'}`}
-            >
-              <BarChart3 size={14} /> Grafikon
-            </button>
-            <button
-              onClick={() => setDiffView('table')}
-              className={`px-3 py-1.5 rounded text-xs flex items-center gap-1.5 ${diffView === 'table' ? 'bg-honey-500 text-slate-900' : 'text-slate-300'}`}
-            >
-              <TableIcon size={14} /> Táblázat
-            </button>
-          </div>
+          <ChartToggle view={diffView} setView={setDiffView} />
         </div>
         {diffView === 'chart' ? (
           <DailyDiffChart diffs={filteredDiffs} />

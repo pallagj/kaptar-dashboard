@@ -38,6 +38,9 @@ def parse_html(html: str) -> List[Dict]:
             temp = float(tds[3].get_text(strip=True).replace(",", "."))
         except ValueError:
             continue
+        # Skip sensor glitches: negative weight or absurdly low value (scale disconnected)
+        if weight < 5.0:
+            continue
         y, mo, d, h, mi, s = map(int, m.groups())
         ts = int(datetime(y, mo, d, h, mi, s).timestamp() * 1000)
         out.append({

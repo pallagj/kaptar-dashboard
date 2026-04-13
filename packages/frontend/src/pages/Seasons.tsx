@@ -3,6 +3,7 @@ import { Flower2, Plus, Trash2, StopCircle } from 'lucide-react'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts'
 import { api, type Flower, type Season } from '../lib/api'
 import { Modal } from '../components/Modal'
+import { ChartToggle } from '../components/ChartToggle'
 import { fmtSigned, daysBetween } from '../lib/format'
 
 const COLORS = ['#f59e0b', '#10b981', '#38bdf8', '#a78bfa', '#f472b6', '#fbbf24', '#34d399', '#60a5fa']
@@ -18,6 +19,7 @@ interface Props {
 export function Seasons({ hiveId, seasons, flowers, onChange, notify }: Props) {
   const [showStart, setShowStart] = useState(false)
   const [selectedFlower, setSelectedFlower] = useState('')
+  const [pieView, setPieView] = useState<'chart' | 'table'>('chart')
 
   const pieData = useMemo(() => {
     const map = new Map<string, number>()
@@ -49,22 +51,46 @@ export function Seasons({ hiveId, seasons, flowers, onChange, notify }: Props) {
 
       {pieData.length > 0 && (
         <div className="card p-4 sm:p-5">
-          <h3 className="text-sm uppercase tracking-wider text-slate-400 mb-3">Termelés virágonként</h3>
-          <ResponsiveContainer width="100%" height={280}>
-            <PieChart>
-              <Pie data={pieData} dataKey="value" nameKey="name" innerRadius={60} outerRadius={100}
-                paddingAngle={2}>
-                {pieData.map((_, i) => (
-                  <Cell key={i} fill={COLORS[i % COLORS.length]} />
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm uppercase tracking-wider text-slate-400">Termelés virágonként</h3>
+            <ChartToggle view={pieView} setView={setPieView} />
+          </div>
+          {pieView === 'chart' ? (
+            <ResponsiveContainer width="100%" height={280}>
+              <PieChart>
+                <Pie data={pieData} dataKey="value" nameKey="name" innerRadius={60} outerRadius={100} paddingAngle={2}>
+                  {pieData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                </Pie>
+                <Tooltip
+                  contentStyle={{ background: 'rgba(15,23,42,0.95)', border: '1px solid #334155', borderRadius: 8 }}
+                  formatter={(v: number) => `${v.toFixed(2)} kg`}
+                />
+                <Legend wrapperStyle={{ color: '#94a3b8' }} />
+              </PieChart>
+            </ResponsiveContainer>
+          ) : (
+            <table className="w-full text-sm">
+              <thead className="bg-slate-800">
+                <tr>
+                  <th className="px-4 py-2 text-left text-slate-300">Virág</th>
+                  <th className="px-4 py-2 text-right text-slate-300">Hozam</th>
+                  <th className="px-4 py-2 text-right text-slate-300">Arány</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pieData.map((p, i) => (
+                  <tr key={p.name} className="border-b border-slate-800">
+                    <td className="px-4 py-2 flex items-center gap-2">
+                      <span className="inline-block w-3 h-3 rounded-full" style={{ background: COLORS[i % COLORS.length] }} />
+                      {p.name}
+                    </td>
+                    <td className="px-4 py-2 text-right font-mono text-emerald-400">+{p.value.toFixed(2)} kg</td>
+                    <td className="px-4 py-2 text-right text-slate-400">{((p.value / totalGain) * 100).toFixed(1)}%</td>
+                  </tr>
                 ))}
-              </Pie>
-              <Tooltip
-                contentStyle={{ background: 'rgba(15,23,42,0.95)', border: '1px solid #334155', borderRadius: 8 }}
-                formatter={(v: number) => `${v.toFixed(2)} kg`}
-              />
-              <Legend wrapperStyle={{ color: '#94a3b8' }} />
-            </PieChart>
-          </ResponsiveContainer>
+              </tbody>
+            </table>
+          )}
         </div>
       )}
 
