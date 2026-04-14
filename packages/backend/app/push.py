@@ -25,7 +25,7 @@ def _priv_to_raw_b64(private_key) -> str:
 
 log = logging.getLogger("kaptar.push")
 
-VAPID_SUB = "https://github.com/pallagj/kaptar-dashboard"
+VAPID_SUB = "mailto:pallagj@gmail.com"
 
 
 def _ensure_vapid() -> tuple[str, str]:
