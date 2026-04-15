@@ -83,19 +83,31 @@ export function Seasons({ hiveId, seasons, flowers, history, onChange, notify }:
     return rows
   }, [compareData])
 
+  // Latest net weight (history is already net from backend apply_offsets)
+  const latestNet = useMemo(() => {
+    if (!history.length) return null
+    return history.reduce((a, b) => (a.timestamp > b.timestamp ? a : b)).weight
+  }, [history])
+
+  // Per-season gain: closed → end-start; active → latest-start
+  const seasonGain = (s: Season): number | null => {
+    if (s.end_ts && s.end_weight !== null) return s.end_weight - s.start_weight
+    if (latestNet !== null) return latestNet - s.start_weight
+    return null
+  }
+
   const pieData = useMemo(() => {
     const map = new Map<string, number>()
     seasons.forEach(s => {
-      if (s.end_ts && s.end_weight !== null) {
-        const gain = s.end_weight - s.start_weight
-        if (gain > 0) {
-          const name = s.flower_name ?? s.flower_id
-          map.set(name, (map.get(name) ?? 0) + gain)
-        }
+      const g = seasonGain(s)
+      if (g !== null && g > 0) {
+        const name = s.flower_name ?? s.flower_id
+        map.set(name, (map.get(name) ?? 0) + g)
       }
     })
     return [...map.entries()].map(([name, value]) => ({ name, value }))
-  }, [seasons])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seasons, latestNet])
 
   const totalGain = pieData.reduce((a, b) => a + b.value, 0)
 
@@ -229,8 +241,12 @@ export function Seasons({ hiveId, seasons, flowers, history, onChange, notify }:
             <tbody>
               {seasons.map(s => {
                 const active = s.end_ts === null
-                const gain = active ? null : (s.end_weight ?? 0) - s.start_weight
-                const days = s.end_ts ? daysBetween(s.start_ts, s.end_ts) : null
+                const gain = seasonGain(s)
+                const days = active
+                  ? (latestNet !== null && history.length
+                      ? daysBetween(s.start_ts, history.reduce((a, b) => (a.timestamp > b.timestamp ? a : b)).timestamp)
+                      : null)
+                  : daysBetween(s.start_ts, s.end_ts!)
                 return (
                   <tr key={s.id} className="border-b border-slate-800 hover:bg-slate-800/50">
                     <td className="px-4 py-2 font-semibold">
@@ -241,7 +257,8 @@ export function Seasons({ hiveId, seasons, flowers, history, onChange, notify }:
                     <td className="px-4 py-2">{s.end_ts ? new Date(s.end_ts).toLocaleDateString('hu-HU') : '—'}</td>
                     <td className="px-4 py-2 text-right">{days ?? '—'}</td>
                     <td className={`px-4 py-2 text-right font-semibold ${gain !== null && gain >= 0 ? 'text-emerald-400' : gain !== null ? 'text-red-400' : 'text-slate-400'}`}>
-                      {gain !== null ? fmtSigned(gain) : 'folyamatban'}
+                      {gain !== null ? fmtSigned(gain) : '—'}
+                      {active && gain !== null && <span className="ml-1 text-xs text-slate-500">(eddig)</span>}
                     </td>
                     <td className="px-4 py-2 text-right">
                       {active ? (
