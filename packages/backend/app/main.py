@@ -228,28 +228,45 @@ def delete_season(season_id: int):
 
 
 @app.post("/api/tare")
-def tare(hive_id: str, target_net_kg: float, current_raw_kg: Optional[float] = None, note: Optional[str] = None):
-    """Rögzít egy új tára-eseményt a mostani időpontra. Az offsetet a megadott
-    `current_raw_kg` (a mérleg aktuális bruttó értéke) és a `target_net_kg`
-    különbségeként számolja. Ha nincs megadva, az utolsó mért bruttó érték.
-    A korábbi mérések offsetje változatlan marad."""
+def tare(
+    hive_id: str,
+    pre_raw_kg: float,
+    post_raw_kg: float,
+    target_net_kg: Optional[float] = None,
+    note: Optional[str] = None,
+):
+    """Fiók hozzáadása / eltávolítása tárázással.
+
+    `pre_raw_kg`: a mérleg bruttó értéke közvetlenül a fiókváltás ELŐTT
+    `post_raw_kg`: a mérleg bruttó értéke közvetlenül a fiókváltás UTÁN
+    `target_net_kg`: opcionális; ha nincs megadva, a nettó (mézgyűjtés)
+        görbe folytonos marad (pre_net = pre_raw - régi_offset).
+
+    Képlet:
+        régi_offset   = effective_offset(hive, pre_mérés_időpontja)
+        pre_net       = pre_raw_kg - régi_offset
+        cél_nettó     = target_net_kg ha megadva, különben pre_net
+        új_offset     = post_raw_kg - cél_nettó
+    """
     now = int(time.time() * 1000)
     with db() as c:
         row = c.execute(
-            "SELECT timestamp,weight FROM measurements WHERE hive_id=? ORDER BY timestamp DESC LIMIT 1",
+            "SELECT timestamp FROM measurements WHERE hive_id=? ORDER BY timestamp DESC LIMIT 1",
             (hive_id,),
         ).fetchone()
         if not row:
             raise HTTPException(400, "Nincs mért adat.")
-        raw = float(current_raw_kg) if current_raw_kg is not None else float(row["weight"])
-        offset = round(raw - target_net_kg, 2)
+        old_offset = effective_offset(c, hive_id, int(row["timestamp"]))
+        pre_net = round(float(pre_raw_kg) - old_offset, 2)
+        target_net = float(target_net_kg) if target_net_kg is not None else pre_net
+        offset = round(float(post_raw_kg) - target_net, 2)
         event_ts = max(int(row["timestamp"]) + 1, now)
         c.execute(
             "INSERT INTO tare_events(hive_id,timestamp,offset,target_net,note,created_at) "
             "VALUES(?,?,?,?,?,?)",
-            (hive_id, event_ts, offset, target_net_kg, note, now),
+            (hive_id, event_ts, offset, target_net, note, now),
         )
-    return {"ok": True, "tare_offset": offset}
+    return {"ok": True, "tare_offset": offset, "target_net": target_net, "pre_net": pre_net}
 
 
 @app.get("/api/tare-events")

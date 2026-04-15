@@ -18,13 +18,17 @@ interface Props {
 export function SettingsPage({ hive, flowers, settings, tareEvents, latestRaw, onChange, notify }: Props) {
   const [newFlowerName, setNewFlowerName] = useState('')
   const [tareOpen, setTareOpen] = useState(false)
-  const [tareRaw, setTareRaw] = useState('')
+  const [tarePre, setTarePre] = useState('')
+  const [tarePost, setTarePost] = useState('')
   const [tareTarget, setTareTarget] = useState('')
+  const [tareAdvanced, setTareAdvanced] = useState(false)
   const [tareNote, setTareNote] = useState('')
 
   function openTare() {
-    setTareRaw(latestRaw !== null ? latestRaw.toFixed(2) : '')
+    setTarePre(latestRaw !== null ? latestRaw.toFixed(2) : '')
+    setTarePost('')
     setTareTarget('')
+    setTareAdvanced(false)
     setTareNote('')
     setTareOpen(true)
   }
@@ -312,36 +316,75 @@ export function SettingsPage({ hive, flowers, settings, tareEvents, latestRaw, o
         </div>
       </Modal>
 
-      <Modal open={tareOpen} onClose={() => setTareOpen(false)} title="Tárázás / fiók hozzáadás">
-        <p className="text-sm text-slate-300 mb-4">
-          A múltbeli mérések <b>nem</b> módosulnak — az új eltolás innentől érvényes.
-          Ha a mérleg azóta változott hogy az utolsó adat beérkezett (pl. most raktál rá fiókot),
-          írd át a „Jelenlegi bruttó"-t arra amit tényleg kijelez a mérleg.
+      <Modal open={tareOpen} onClose={() => setTareOpen(false)} title="Fiók hozzáadása / eltávolítása">
+        <p className="text-sm text-slate-300 mb-2">
+          Amikor új fiókot raksz fel vagy veszel le, a mérleg bruttó értéke megugrik / leesik,
+          de ez <b>nem méz</b>. Írd be a mérleg értékét közvetlenül a művelet <b>ELŐTT</b> és
+          <b> UTÁN</b> — a rendszer úgy számolja az új tárát, hogy a nettó (mézgyűjtés) görbe
+          folytonos maradjon.
+        </p>
+        <p className="text-sm text-amber-300/90 mb-4">
+          Pörgetéskor <b>ne</b> használd ezt — ott szándékos, hogy a nettó leessen.
         </p>
         <label className="block text-xs text-slate-400 mb-1">
-          Jelenlegi bruttó (kg) {latestRaw !== null && <span className="text-slate-500">— utolsó mért: {latestRaw.toFixed(2)}</span>}
+          Bruttó a művelet ELŐTT (kg)
+          {latestRaw !== null && <span className="text-slate-500"> — utolsó mért: {latestRaw.toFixed(2)}</span>}
         </label>
         <input
           className="input mb-3"
           type="number"
           step="0.1"
-          placeholder="mit mutat most a mérleg"
-          value={tareRaw}
-          onChange={e => setTareRaw(e.target.value)}
+          placeholder="mit mutatott a mérleg közvetlenül előtte"
+          value={tarePre}
+          onChange={e => setTarePre(e.target.value)}
         />
-        <label className="block text-xs text-slate-400 mb-1">Kívánt nettó súly (kg)</label>
+        <label className="block text-xs text-slate-400 mb-1">Bruttó a művelet UTÁN (kg)</label>
         <input
           className="input mb-3"
           type="number"
           step="0.1"
-          placeholder="mennyi legyen kijelezve"
-          value={tareTarget}
-          onChange={e => setTareTarget(e.target.value)}
+          placeholder="mit mutat most a mérleg"
+          value={tarePost}
+          onChange={e => setTarePost(e.target.value)}
         />
-        {tareRaw && tareTarget && (
-          <p className="text-xs text-slate-400 mb-3">
-            Új eltolás: <span className="font-mono text-slate-200">{(Number(tareRaw) - Number(tareTarget)).toFixed(2)} kg</span>
-          </p>
+        {(() => {
+          const pre = Number(tarePre)
+          const post = Number(tarePost)
+          if (!tarePre || !tarePost || !isFinite(pre) || !isFinite(post)) return null
+          const preNet = pre - hive.tare_offset
+          const boxDelta = post - pre
+          const target = tareAdvanced && tareTarget ? Number(tareTarget) : preNet
+          const newOffset = post - target
+          return (
+            <div className="text-xs text-slate-400 mb-3 space-y-1 rounded-lg bg-slate-800/50 p-3">
+              <div>Fiók súlya (bruttó különbség): <span className="font-mono text-slate-200">{boxDelta >= 0 ? '+' : ''}{boxDelta.toFixed(2)} kg</span></div>
+              <div>Nettó a művelet előtt: <span className="font-mono text-slate-200">{preNet.toFixed(2)} kg</span></div>
+              <div>Nettó a művelet után (cél): <span className="font-mono text-slate-200">{target.toFixed(2)} kg</span></div>
+              <div>Új tára-eltolás: <span className="font-mono text-slate-200">{newOffset.toFixed(2)} kg</span></div>
+            </div>
+          )
+        })()}
+        <button
+          type="button"
+          className="text-xs text-slate-400 hover:text-slate-200 mb-2"
+          onClick={() => setTareAdvanced(v => !v)}
+        >
+          {tareAdvanced ? '▾' : '▸'} Haladó — cél nettó felülírása (kalibráció)
+        </button>
+        {tareAdvanced && (
+          <>
+            <p className="text-xs text-slate-500 mb-1">
+              Csak akkor írd át, ha explicit 0-ra vagy más értékre kalibrálod (pl. szezonkezdés, tudod hogy most 0 kg méz van).
+            </p>
+            <input
+              className="input mb-3"
+              type="number"
+              step="0.1"
+              placeholder="cél nettó (kg) — üres = nettó változatlan"
+              value={tareTarget}
+              onChange={e => setTareTarget(e.target.value)}
+            />
+          </>
         )}
         <label className="block text-xs text-slate-400 mb-1">Megjegyzés (opcionális)</label>
         <input
@@ -354,12 +397,21 @@ export function SettingsPage({ hive, flowers, settings, tareEvents, latestRaw, o
           <button className="btn-ghost" onClick={() => setTareOpen(false)}>Mégse</button>
           <button
             className="btn-primary"
-            disabled={!tareTarget || !tareRaw}
+            disabled={!tarePre || !tarePost}
             onClick={async () => {
-              const raw = Number(tareRaw)
-              const tgt = Number(tareTarget)
-              if (!confirm(`Tárázás: bruttó ${raw.toFixed(2)} kg → nettó ${tgt.toFixed(2)} kg (eltolás ${(raw - tgt).toFixed(2)} kg). Folytatod?`)) return
-              await api.tare(hive.id, tgt, raw, tareNote.trim() || undefined)
+              const pre = Number(tarePre)
+              const post = Number(tarePost)
+              const tgt = tareAdvanced && tareTarget ? Number(tareTarget) : undefined
+              const preNet = pre - hive.tare_offset
+              const finalTarget = tgt !== undefined ? tgt : preNet
+              const newOffset = post - finalTarget
+              if (!confirm(
+                `Művelet előtti bruttó: ${pre.toFixed(2)} kg\n` +
+                `Művelet utáni bruttó: ${post.toFixed(2)} kg\n` +
+                `Cél nettó: ${finalTarget.toFixed(2)} kg\n` +
+                `Új eltolás: ${newOffset.toFixed(2)} kg\nFolytatod?`
+              )) return
+              await api.tare(hive.id, pre, post, tgt, tareNote.trim() || undefined)
               setTareOpen(false)
               notify('Tárázás mentve')
               onChange()
