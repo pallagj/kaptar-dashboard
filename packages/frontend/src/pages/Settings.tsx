@@ -316,15 +316,12 @@ export function SettingsPage({ hive, flowers, settings, tareEvents, latestRaw, o
         </div>
       </Modal>
 
-      <Modal open={tareOpen} onClose={() => setTareOpen(false)} title="Fiók hozzáadása / eltávolítása">
-        <p className="text-sm text-slate-300 mb-2">
-          Amikor új fiókot raksz fel vagy veszel le, a mérleg bruttó értéke megugrik / leesik,
-          de ez <b>nem méz</b>. Írd be a mérleg értékét közvetlenül a művelet <b>ELŐTT</b> és
-          <b> UTÁN</b> — a rendszer úgy számolja az új tárát, hogy a nettó (mézgyűjtés) görbe
-          folytonos maradjon.
-        </p>
-        <p className="text-sm text-amber-300/90 mb-4">
-          Pörgetéskor <b>ne</b> használd ezt — ott szándékos, hogy a nettó leessen.
+      <Modal open={tareOpen} onClose={() => setTareOpen(false)} title="Tárázás (fiókváltás / pörgetés)">
+        <p className="text-sm text-slate-300 mb-4">
+          Ha fiókot raksz fel/veszel le, vagy pörgetsz és az eddig gyűjtött mézet meg akarod
+          tartani a nettóban, írd be a mérleg bruttó értékét közvetlenül a művelet <b>ELŐTT</b>
+          és <b>UTÁN</b> — a rendszer úgy számolja az új tárát, hogy a nettó (mézgyűjtés) görbe
+          ne ugorjon.
         </p>
         <label className="block text-xs text-slate-400 mb-1">
           Bruttó a művelet ELŐTT (kg)
