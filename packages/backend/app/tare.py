@@ -6,33 +6,32 @@ effektív offset = a legutolsó olyan esemény `offset`-je, aminek `timestamp <=
 Ha nincs ilyen esemény, az offset 0.
 """
 from __future__ import annotations
-from typing import Iterable, List, Dict
+from typing import Dict, Iterable, List
 
 
-def list_events(c, hive_id: str) -> List[Dict]:
+def list_events(c, scale_id: str) -> List[Dict]:
     rows = c.execute(
-        "SELECT id,hive_id,timestamp,offset,target_net,note,created_at "
-        "FROM tare_events WHERE hive_id=? ORDER BY timestamp ASC",
-        (hive_id,),
+        "SELECT id,scale_id,timestamp,offset,target_net,note,created_at "
+        "FROM tare_events WHERE scale_id=? ORDER BY timestamp ASC",
+        (scale_id,),
     ).fetchall()
     return [dict(r) for r in rows]
 
 
-def effective_offset(c, hive_id: str, ts_ms: int) -> float:
+def effective_offset(c, scale_id: str, ts_ms: int) -> float:
     row = c.execute(
-        "SELECT offset FROM tare_events WHERE hive_id=? AND timestamp<=? "
+        "SELECT offset FROM tare_events WHERE scale_id=? AND timestamp<=? "
         "ORDER BY timestamp DESC LIMIT 1",
-        (hive_id, ts_ms),
+        (scale_id, ts_ms),
     ).fetchone()
     return float(row["offset"]) if row else 0.0
 
 
-def apply_offsets(events: List[Dict], rows: Iterable[Dict], ts_key: str = "timestamp", weight_key: str = "weight") -> None:
+def apply_offsets(events: List[Dict], rows: Iterable[Dict],
+                   ts_key: str = "timestamp", weight_key: str = "weight") -> None:
     """In-place: set row[weight_key] to net weight using the tare events list.
 
-    `events` must be ordered ascending by timestamp. `rows` may be any order; we handle it
-    by sorting events once and binary-walking per row would be overkill — linear search
-    back from the latest event is fine given tiny event counts.
+    `events` must be ordered ascending by timestamp.
     """
     if not events:
         return
@@ -40,7 +39,6 @@ def apply_offsets(events: List[Dict], rows: Iterable[Dict], ts_key: str = "times
     offs = [float(e["offset"]) for e in events]
     for r in rows:
         t = r[ts_key]
-        # find largest i where ts_sorted[i] <= t
         lo, hi = 0, len(ts_sorted) - 1
         idx = -1
         while lo <= hi:
@@ -52,4 +50,3 @@ def apply_offsets(events: List[Dict], rows: Iterable[Dict], ts_key: str = "times
                 hi = mid - 1
         if idx >= 0:
             r[weight_key] = round(r[weight_key] - offs[idx], 2)
-        # else: offset 0, unchanged

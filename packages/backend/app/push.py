@@ -1,4 +1,4 @@
-"""Web Push notifications.
+"""Web Push notifications, scoped to users.
 
 Generates a VAPID keypair on first use (stored in settings), manages
 subscriptions in `push_subscriptions`, and sends notifications via
@@ -17,26 +17,20 @@ from pywebpush import webpush, WebPushException
 from .db import db, get_setting, set_setting
 
 
-def _priv_to_raw_b64(private_key) -> str:
-    """Export an EC private key as base64url(32-byte raw scalar) — py-vapid's preferred form."""
-    n = private_key.private_numbers().private_value
-    raw = n.to_bytes(32, "big")
-    return base64.urlsafe_b64encode(raw).rstrip(b"=").decode()
-
 log = logging.getLogger("kaptar.push")
 
 VAPID_SUB = "mailto:pallagj@gmail.com"
 
 
-def _ensure_vapid() -> tuple[str, str]:
-    """Return (private_key_b64url_raw, public_key_b64url_raw).
+def _priv_to_raw_b64(private_key) -> str:
+    n = private_key.private_numbers().private_value
+    raw = n.to_bytes(32, "big")
+    return base64.urlsafe_b64encode(raw).rstrip(b"=").decode()
 
-    py-vapid (used by pywebpush) parses the private key best from its raw
-    base64url-encoded 32-byte scalar form — PKCS8 PEM can trip on some versions.
-    """
+
+def _ensure_vapid() -> tuple[str, str]:
     priv_b64 = get_setting("vapid_private_b64")
     pub_b64 = get_setting("vapid_public_b64")
-    # Discard legacy PEM-format keys if present (they caused parse errors).
     if priv_b64 and pub_b64:
         return priv_b64, pub_b64
     private_key = ec.generate_private_key(ec.SECP256R1())
@@ -56,13 +50,13 @@ def public_key_b64() -> str:
     return _ensure_vapid()[1]
 
 
-def add_subscription(endpoint: str, keys: dict) -> None:
+def add_subscription(user_id: int, endpoint: str, keys: dict) -> None:
     import time
     with db() as c:
         c.execute(
-            "INSERT INTO push_subscriptions(endpoint,keys_json,created_at) VALUES(?,?,?) "
-            "ON CONFLICT(endpoint) DO UPDATE SET keys_json=excluded.keys_json",
-            (endpoint, json.dumps(keys), int(time.time() * 1000)),
+            "INSERT INTO push_subscriptions(user_id,endpoint,keys_json,created_at) VALUES(?,?,?,?) "
+            "ON CONFLICT(endpoint) DO UPDATE SET user_id=excluded.user_id, keys_json=excluded.keys_json",
+            (user_id, endpoint, json.dumps(keys), int(time.time() * 1000)),
         )
 
 
@@ -71,18 +65,21 @@ def remove_subscription(endpoint: str) -> None:
         c.execute("DELETE FROM push_subscriptions WHERE endpoint=?", (endpoint,))
 
 
-def list_subscriptions() -> list[dict]:
+def _subscriptions_for_user(user_id: int) -> list[dict]:
     with db() as c:
-        rows = c.execute("SELECT endpoint,keys_json FROM push_subscriptions").fetchall()
+        rows = c.execute(
+            "SELECT endpoint,keys_json FROM push_subscriptions WHERE user_id=?", (user_id,)
+        ).fetchall()
         return [{"endpoint": r["endpoint"], "keys": json.loads(r["keys_json"])} for r in rows]
 
 
-def send(title: str, body: str, tag: Optional[str] = None, url: Optional[str] = None) -> int:
+def send_to_user(user_id: int, title: str, body: str,
+                  tag: Optional[str] = None, url: Optional[str] = None) -> int:
     priv_b64, _ = _ensure_vapid()
     payload = json.dumps({"title": title, "body": body, "tag": tag, "url": url or "/"})
     sent = 0
     dead: list[str] = []
-    for sub in list_subscriptions():
+    for sub in _subscriptions_for_user(user_id):
         try:
             webpush(
                 subscription_info={"endpoint": sub["endpoint"], "keys": sub["keys"]},

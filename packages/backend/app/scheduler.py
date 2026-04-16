@@ -4,7 +4,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 
 from .db import get_setting
-from .scraper import sync_all
+from .scraper import sync_all_users
 
 log = logging.getLogger("kaptar.scheduler")
 
@@ -13,7 +13,7 @@ _scheduler: AsyncIOScheduler | None = None
 
 async def _job():
     try:
-        res = await sync_all()
+        res = await sync_all_users()
         log.info("scheduled sync: %s", res)
     except Exception:
         log.exception("scheduled sync failed")
