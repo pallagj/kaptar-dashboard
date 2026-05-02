@@ -192,9 +192,29 @@ def init_db():
         """)
         c.execute("CREATE INDEX IF NOT EXISTS idx_push_user ON push_subscriptions(user_id)")
 
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS user_settings (
+                user_id INTEGER NOT NULL,
+                key     TEXT NOT NULL,
+                value   TEXT NOT NULL,
+                PRIMARY KEY (user_id, key),
+                FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+            )
+        """)
+
         # Seed defaults
         for k, v in DEFAULT_SETTINGS.items():
             c.execute("INSERT OR IGNORE INTO settings(key,value) VALUES(?,?)", (k, v))
+
+        # One-shot migration: copy per-user settings from global table to Roland.
+        if not c.execute("SELECT 1 FROM user_settings LIMIT 1").fetchone():
+            for k in ("swarm_alert_kg", "battery_warn_v"):
+                row = c.execute("SELECT value FROM settings WHERE key=?", (k,)).fetchone()
+                if row:
+                    c.execute(
+                        "INSERT OR IGNORE INTO user_settings(user_id,key,value) VALUES(?,?,?)",
+                        (owner_id, k, row["value"]),
+                    )
         for fid, name in DEFAULT_FLOWERS:
             c.execute("INSERT OR IGNORE INTO flowers(id,name) VALUES(?,?)", (fid, name))
 
@@ -293,4 +313,26 @@ def set_setting(key: str, value: str):
         c.execute(
             "INSERT INTO settings(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
             (key, value),
+        )
+
+
+_PER_USER_KEYS = {"swarm_alert_kg", "battery_warn_v"}
+
+
+def get_user_setting(user_id: int, key: str, default: str | None = None) -> str | None:
+    with db() as c:
+        row = c.execute(
+            "SELECT value FROM user_settings WHERE user_id=? AND key=?", (user_id, key)
+        ).fetchone()
+        if row:
+            return row["value"]
+    return get_setting(key, default)
+
+
+def set_user_setting(user_id: int, key: str, value: str):
+    with db() as c:
+        c.execute(
+            "INSERT INTO user_settings(user_id,key,value) VALUES(?,?,?) "
+            "ON CONFLICT(user_id,key) DO UPDATE SET value=excluded.value",
+            (user_id, key, value),
         )

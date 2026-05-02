@@ -102,11 +102,11 @@ async def fetch_and_store(scale_id: str) -> int:
 
 def _check_alerts_and_notify(scale_id: str, user_id: int, new_timestamps: list[int]) -> None:
     """Send a push notification to the scale owner on a sharp drop in any newly-ingested rows."""
-    from .db import get_setting
+    from .db import get_user_setting
     from .tare import list_events as tare_list, apply_offsets
     from . import push
 
-    threshold = float(get_setting("swarm_alert_kg", "1.5") or "1.5")
+    threshold = float(get_user_setting(user_id, "swarm_alert_kg", "1.5") or "1.5")
     MAX_GAP_MS = 6 * 3600 * 1000
 
     with db() as c:

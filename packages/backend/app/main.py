@@ -11,7 +11,7 @@ from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from .db import db, init_db, get_setting, set_setting
+from .db import db, init_db, get_setting, set_setting, get_user_setting, set_user_setting
 from .scraper import sync_for_user
 from .scheduler import start_scheduler, reschedule
 from .tare import list_events as tare_list, effective_offset, apply_offsets
@@ -497,18 +497,23 @@ _SETTINGS_PRIVATE = {
 
 @app.get("/api/settings")
 def get_settings(user: dict = Depends(current_user)):
-    with db() as c:
-        rows = c.execute("SELECT key,value FROM settings").fetchall()
-        return {r["key"]: r["value"] for r in rows if r["key"] not in _SETTINGS_PRIVATE}
+    uid = user["id"]
+    return {
+        "sync_interval_minutes": get_setting("sync_interval_minutes", "30"),
+        "swarm_alert_kg":        get_user_setting(uid, "swarm_alert_kg", "1.5"),
+        "battery_warn_v":        get_user_setting(uid, "battery_warn_v", "5.6"),
+    }
 
 
 @app.patch("/api/settings")
 def update_settings(upd: SettingsUpdate, user: dict = Depends(current_user)):
     data = upd.model_dump(exclude_none=True)
-    for k, v in data.items():
-        set_setting(k, str(v))
     if "sync_interval_minutes" in data:
+        set_setting("sync_interval_minutes", str(data["sync_interval_minutes"]))
         reschedule(int(data["sync_interval_minutes"]))
+    for k in ("swarm_alert_kg", "battery_warn_v"):
+        if k in data:
+            set_user_setting(user["id"], k, str(data[k]))
     return {"ok": True}
 
 
@@ -602,7 +607,7 @@ def stats(scale_id: str, user: dict = Depends(current_user)):
             "timestamp": days_sorted[i]["timestamp"],
         })
 
-    swarm_threshold = float(get_setting("swarm_alert_kg", "1.5") or "1.5")
+    swarm_threshold = float(get_user_setting(user["id"], "swarm_alert_kg", "1.5") or "1.5")
     alerts = []
     MAX_ALERT_GAP_MS = 6 * 3600 * 1000
     for i in range(len(rows) - 1):
