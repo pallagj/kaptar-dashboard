@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, Flower2, Settings as SettingsIcon, RefreshCw, Download, ArrowLeft, Plus } from 'lucide-react'
+import { LayoutDashboard, Flower2, Settings as SettingsIcon, RefreshCw, ArrowLeft, Plus } from 'lucide-react'
 import { api, type Flower, type Scale, type Season, type Settings as S, type Stats } from '../lib/api'
 import { Dashboard } from './Dashboard'
 import { Seasons } from './Seasons'
@@ -77,20 +77,6 @@ export function ScaleDetail() {
     }
   }
 
-  function handleExport() {
-    if (!stats || !scaleId) return
-    const blob = new Blob(
-      [JSON.stringify({ scale: scaleId, exportedAt: Date.now(), stats }, null, 2)],
-      { type: 'application/json' },
-    )
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `kaptar-${scaleId}-${new Date().toISOString().slice(0, 10)}.json`
-    a.click()
-    URL.revokeObjectURL(url)
-  }
-
   if (loading) {
     return (
       <div className="h-screen flex items-center justify-center text-slate-300">
@@ -117,9 +103,6 @@ export function ScaleDetail() {
             <p className="text-sm text-slate-400 truncate">{scale.id}</p>
           </div>
           <div className="flex items-center gap-2">
-            <button className="btn-ghost" onClick={handleExport} title="Export">
-              <Download size={18} />
-            </button>
             {scale.source_type === 'kaptargsm' ? (
               <button className="btn-primary" onClick={handleSync} disabled={syncing}>
                 <RefreshCw size={18} className={syncing ? 'animate-spin' : ''} />
@@ -163,11 +146,10 @@ export function ScaleDetail() {
           {tab === 'settings' && (
             <SettingsPage
               scale={scale}
-              flowers={flowers}
-              settings={settings}
               tareEvents={stats?.tare_events ?? []}
               latestRaw={stats?.latest_raw ?? null}
               onChange={load}
+              onDelete={() => navigate('/')}
               notify={notify}
             />
           )}

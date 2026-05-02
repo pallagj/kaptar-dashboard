@@ -17,3 +17,4 @@ packages/backend/data.db-*
 
 # Claude Code memory (local only)
 memory/
+backups/

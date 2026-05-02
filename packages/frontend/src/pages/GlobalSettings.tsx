@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Plus, Trash2, Bell, BellOff, Copy, Check, RefreshCw, ExternalLink } from 'lucide-react'
+import { ArrowLeft, Plus, Trash2, Bell, BellOff } from 'lucide-react'
 import { api, type Flower, type Settings as S } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import { getPushStatus, subscribe as pushSubscribe, unsubscribe as pushUnsubscribe } from '../lib/push'
 
 export function GlobalSettings() {
   const navigate = useNavigate()
-  const { user, refresh } = useAuth()
+  const { user } = useAuth()
   const [settings, setSettings] = useState<S | null>(null)
   const [flowers, setFlowers] = useState<Flower[]>([])
   const [loading, setLoading] = useState(true)
@@ -20,10 +20,6 @@ export function GlobalSettings() {
 
   const [pushStatus, setPushStatus] = useState<Awaited<ReturnType<typeof getPushStatus>> | 'loading'>('loading')
   const [pushBusy, setPushBusy] = useState(false)
-
-  const [tokenCopied, setTokenCopied] = useState(false)
-  const [urlCopied, setUrlCopied] = useState(false)
-  const [rotatingToken, setRotatingToken] = useState(false)
 
   function notify(m: string) {
     setMsg(m)
@@ -86,18 +82,15 @@ export function GlobalSettings() {
               <label className="block text-xs text-slate-400 mb-1">Akku figyelmeztetés (V)</label>
               <input className="input" type="number" step="0.1" value={batteryV} onChange={e => setBatteryV(e.target.value)} />
             </div>
-            <button
-              className="btn-primary"
-              onClick={async () => {
-                await api.updateSettings({
-                  sync_interval_minutes: Number(syncMin),
-                  swarm_alert_kg: Number(swarmKg),
-                  battery_warn_v: Number(batteryV),
-                })
-                notify('Beállítások mentve')
-                load()
-              }}
-            >
+            <button className="btn-primary" onClick={async () => {
+              await api.updateSettings({
+                sync_interval_minutes: Number(syncMin),
+                swarm_alert_kg: Number(swarmKg),
+                battery_warn_v: Number(batteryV),
+              })
+              notify('Beállítások mentve')
+              load()
+            }}>
               Mentés
             </button>
           </div>
@@ -143,83 +136,6 @@ export function GlobalSettings() {
           )}
         </section>
 
-        {/* SMS beküldés / iPhone Shortcuts */}
-        <section className="card p-5">
-          <h2 className="text-lg font-bold mb-1">SMS beküldés (iPhone Shortcuts)</h2>
-          <p className="text-sm text-slate-400 mb-4">
-            Az iPhone Shortcuts automata felküldi az SMS-mérlegektől érkező üzeneteket erre az URL-re.
-            A beállításhoz töltsd le a parancsikont és add meg a token + URL adatokat.
-          </p>
-
-          <div className="space-y-3">
-            <div>
-              <label className="block text-xs text-slate-400 mb-1">Ingest token</label>
-              <div className="flex gap-2">
-                <code className="input flex-1 font-mono text-xs truncate select-all bg-slate-900">
-                  {user?.ingest_token ?? '…'}
-                </code>
-                <button
-                  className="btn-ghost shrink-0"
-                  title="Másolás"
-                  onClick={async () => {
-                    await navigator.clipboard.writeText(user?.ingest_token ?? '')
-                    setTokenCopied(true)
-                    setTimeout(() => setTokenCopied(false), 2000)
-                  }}
-                >
-                  {tokenCopied ? <Check size={16} className="text-emerald-400" /> : <Copy size={16} />}
-                </button>
-                <button
-                  className="btn-ghost shrink-0"
-                  title="Token újragenerálása"
-                  disabled={rotatingToken}
-                  onClick={async () => {
-                    if (!confirm('Biztosan újragenerálod a tokent? A régi shortcut-ot frissíteni kell!')) return
-                    setRotatingToken(true)
-                    try {
-                      await api.rotateIngestToken()
-                      await refresh()
-                      notify('Token újragenerálva')
-                    } catch (e: any) { notify('Hiba: ' + e.message) }
-                    finally { setRotatingToken(false) }
-                  }}
-                >
-                  <RefreshCw size={16} className={rotatingToken ? 'animate-spin' : ''} />
-                </button>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs text-slate-400 mb-1">Beküldési URL</label>
-              <div className="flex gap-2">
-                <code className="input flex-1 font-mono text-xs truncate select-all bg-slate-900">
-                  {window.location.origin}/api/ingest/sms
-                </code>
-                <button
-                  className="btn-ghost shrink-0"
-                  title="Másolás"
-                  onClick={async () => {
-                    await navigator.clipboard.writeText(`${window.location.origin}/api/ingest/sms`)
-                    setUrlCopied(true)
-                    setTimeout(() => setUrlCopied(false), 2000)
-                  }}
-                >
-                  {urlCopied ? <Check size={16} className="text-emerald-400" /> : <Copy size={16} />}
-                </button>
-              </div>
-            </div>
-
-            <a
-              href="https://www.icloud.com/shortcuts/3cc4f2799e9f478eaaf01e86924ab154"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn-primary inline-flex"
-            >
-              <ExternalLink size={16} /> Parancsikonok letöltése
-            </a>
-          </div>
-        </section>
-
         {/* Virágok */}
         <section className="card p-5">
           <h2 className="text-lg font-bold mb-3">Virágok katalógus</h2>
@@ -230,9 +146,7 @@ export function GlobalSettings() {
               value={newFlowerName}
               onChange={e => setNewFlowerName(e.target.value)}
             />
-            <button
-              className="btn-primary shrink-0"
-              disabled={!newFlowerName.trim()}
+            <button className="btn-primary shrink-0" disabled={!newFlowerName.trim()}
               onClick={async () => {
                 const name = newFlowerName.trim()
                 const id = name.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, '')
@@ -240,8 +154,7 @@ export function GlobalSettings() {
                 setNewFlowerName('')
                 notify('Virág hozzáadva')
                 load()
-              }}
-            >
+              }}>
               <Plus size={18} />
             </button>
           </div>

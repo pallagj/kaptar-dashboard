@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { RefreshCw, LogOut, Settings, Plus } from 'lucide-react'
+import { RefreshCw, LogOut, Settings, Plus, LayoutList } from 'lucide-react'
 import { api, type Scale, type Settings as S } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import { ScaleCard } from '../components/ScaleCard'
@@ -100,12 +100,6 @@ export function ScalesHome() {
               <RefreshCw size={18} className={syncing ? 'animate-spin' : ''} />
               <span className="hidden sm:inline">Szinkron</span>
             </button>
-            <button className="btn-ghost" onClick={() => navigate('/settings')} title="Beállítások">
-              <Settings size={18} />
-            </button>
-            <button className="btn-ghost" onClick={logout} title="Kijelentkezés">
-              <LogOut size={18} />
-            </button>
           </div>
         </header>
 
@@ -130,6 +124,35 @@ export function ScalesHome() {
           </div>
         )}
       </div>
+
+      <nav
+        className="sticky bottom-0 z-40 bg-slate-900/95 backdrop-blur border-t border-slate-700/50"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+      >
+        <div className="max-w-6xl mx-auto flex">
+          <button
+            className="flex-1 flex flex-col items-center gap-0.5 py-2.5 text-honey-400"
+            disabled
+          >
+            <LayoutList size={22} />
+            <span className="text-[11px] font-medium">Mérlegek</span>
+          </button>
+          <button
+            onClick={() => navigate('/settings')}
+            className="flex-1 flex flex-col items-center gap-0.5 py-2.5 text-slate-400 hover:text-slate-200 transition"
+          >
+            <Settings size={22} />
+            <span className="text-[11px] font-medium">Beállítások</span>
+          </button>
+          <button
+            onClick={logout}
+            className="flex-1 flex flex-col items-center gap-0.5 py-2.5 text-slate-400 hover:text-slate-200 transition"
+          >
+            <LogOut size={22} />
+            <span className="text-[11px] font-medium">Kilépés</span>
+          </button>
+        </div>
+      </nav>
 
       <Modal open={addOpen} onClose={() => setAddOpen(false)} title="Mérleg hozzáadása">
         <label className="block text-xs text-slate-400 mb-1">Típus</label>
