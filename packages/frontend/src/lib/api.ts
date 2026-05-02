@@ -212,6 +212,12 @@ export const api = {
   deleteTareEvent: (id: number) =>
     request<{ ok: boolean }>(`/api/tare-events/${id}`, { method: 'DELETE' }),
 
+  addMeasurement: (scale_id: string, weight: number, temp: number, battery: number, timestamp_ms?: number) => {
+    const p = new URLSearchParams({ scale_id, weight: String(weight), temp: String(temp), battery: String(battery) })
+    if (timestamp_ms !== undefined) p.set('timestamp_ms', String(timestamp_ms))
+    return request<{ ok: boolean }>(`/api/measurements?${p}`, { method: 'POST' })
+  },
+
   pushVapidKey: () => request<{ key: string }>('/api/push/vapid-public-key'),
   pushSubscribe: (sub: { endpoint: string; keys: Record<string, string> }) =>
     request<{ ok: boolean }>('/api/push/subscribe', { method: 'POST', body: JSON.stringify(sub) }),

@@ -278,6 +278,31 @@ def measurements(scale_id: str, since_ms: Optional[int] = None, limit: int = 500
         return [dict(r) for r in rows]
 
 
+@app.post("/api/measurements")
+def add_measurement(
+    scale_id: str,
+    weight: float,
+    temp: float = 0.0,
+    battery: float = 0.0,
+    timestamp_ms: Optional[int] = None,
+    user: dict = Depends(current_user),
+):
+    with db() as c:
+        scale = _require_scale(c, user["id"], scale_id)
+        if scale["source_type"] not in ("manual", "sms"):
+            raise HTTPException(400, "Csak manuális/SMS mérlegnél vihető be adat kézzel")
+        ts = timestamp_ms if timestamp_ms else int(time.time() * 1000)
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+        date_str = datetime.fromtimestamp(ts / 1000, tz=ZoneInfo("Europe/Budapest")).strftime("%Y.%m.%d. %H:%M:%S")
+        c.execute(
+            "INSERT OR REPLACE INTO measurements(timestamp,date_str,weight,battery,temp,scale_id) "
+            "VALUES(?,?,?,?,?,?)",
+            (ts, date_str, round(weight, 2), round(battery, 2), round(temp, 2), scale_id),
+        )
+    return {"ok": True}
+
+
 @app.post("/api/sync")
 async def manual_sync(user: dict = Depends(current_user)):
     res = await sync_for_user(user["id"])

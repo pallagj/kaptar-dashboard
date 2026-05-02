@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, Flower2, Settings as SettingsIcon, RefreshCw, Download, ArrowLeft } from 'lucide-react'
+import { LayoutDashboard, Flower2, Settings as SettingsIcon, RefreshCw, Download, ArrowLeft, Plus } from 'lucide-react'
 import { api, type Flower, type Scale, type Season, type Settings as S, type Stats } from '../lib/api'
 import { Dashboard } from './Dashboard'
 import { Seasons } from './Seasons'
 import { SettingsPage } from './Settings'
+import { Modal } from '../components/Modal'
 
 type Tab = 'dashboard' | 'seasons' | 'settings'
 type Range = '24h' | '7d' | '30d' | 'all'
@@ -23,6 +24,12 @@ export function ScaleDetail() {
   const [syncing, setSyncing] = useState(false)
   const [msg, setMsg] = useState('')
   const msgTimer = useRef<number | null>(null)
+
+  const [addOpen, setAddOpen] = useState(false)
+  const [addWeight, setAddWeight] = useState('')
+  const [addTemp, setAddTemp] = useState('')
+  const [addBattery, setAddBattery] = useState('')
+  const [addDate, setAddDate] = useState('')
 
   const notify = useCallback((m: string) => {
     setMsg(m)
@@ -113,10 +120,23 @@ export function ScaleDetail() {
             <button className="btn-ghost" onClick={handleExport} title="Export">
               <Download size={18} />
             </button>
-            <button className="btn-primary" onClick={handleSync} disabled={syncing}>
-              <RefreshCw size={18} className={syncing ? 'animate-spin' : ''} />
-              <span className="hidden sm:inline">Szinkron</span>
-            </button>
+            {scale.source_type === 'kaptargsm' ? (
+              <button className="btn-primary" onClick={handleSync} disabled={syncing}>
+                <RefreshCw size={18} className={syncing ? 'animate-spin' : ''} />
+                <span className="hidden sm:inline">Szinkron</span>
+              </button>
+            ) : (
+              <button className="btn-primary" onClick={() => {
+                setAddWeight('')
+                setAddTemp('')
+                setAddBattery('')
+                setAddDate(new Date().toISOString().slice(0, 16))
+                setAddOpen(true)
+              }}>
+                <Plus size={18} />
+                <span className="hidden sm:inline">Mérés</span>
+              </button>
+            )}
           </div>
         </header>
 
@@ -153,6 +173,45 @@ export function ScaleDetail() {
           )}
         </main>
       </div>
+
+      <Modal open={addOpen} onClose={() => setAddOpen(false)} title="Mérés rögzítése">
+        <label className="block text-xs text-slate-400 mb-1">Súly (kg) *</label>
+        <input className="input mb-3" type="number" step="0.01" placeholder="pl. 32.50"
+          value={addWeight} onChange={e => setAddWeight(e.target.value)} />
+        <label className="block text-xs text-slate-400 mb-1">Hőmérséklet (°C)</label>
+        <input className="input mb-3" type="number" step="0.1" placeholder="pl. 22.0"
+          value={addTemp} onChange={e => setAddTemp(e.target.value)} />
+        <label className="block text-xs text-slate-400 mb-1">Akkufeszültség (V)</label>
+        <input className="input mb-3" type="number" step="0.1" placeholder="opcionális"
+          value={addBattery} onChange={e => setAddBattery(e.target.value)} />
+        <label className="block text-xs text-slate-400 mb-1">Dátum / idő</label>
+        <input className="input mb-4" type="datetime-local"
+          value={addDate} onChange={e => setAddDate(e.target.value)} />
+        <div className="flex justify-end gap-2">
+          <button className="btn-ghost" onClick={() => setAddOpen(false)}>Mégse</button>
+          <button
+            className="btn-primary"
+            disabled={!addWeight}
+            onClick={async () => {
+              try {
+                const ts = addDate ? new Date(addDate).getTime() : undefined
+                await api.addMeasurement(
+                  scale!.id,
+                  Number(addWeight),
+                  addTemp ? Number(addTemp) : 0,
+                  addBattery ? Number(addBattery) : 0,
+                  ts,
+                )
+                setAddOpen(false)
+                notify('Mérés rögzítve')
+                await load()
+              } catch (e: any) { notify('Hiba: ' + e.message) }
+            }}
+          >
+            Mentés
+          </button>
+        </div>
+      </Modal>
 
       <nav
         className="bottom-nav sticky bottom-0 z-40 bg-slate-900/95 backdrop-blur border-t border-slate-700/50"
