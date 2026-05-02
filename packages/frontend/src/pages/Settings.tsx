@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Scale as ScaleIcon, Pencil, History, Trash2, Copy, Check, RefreshCw, ExternalLink } from 'lucide-react'
 import { api, type Scale, type TareEvent } from '../lib/api'
 import { useAuth } from '../lib/auth'
@@ -234,8 +234,7 @@ export function SettingsPage({ scale, tareEvents, latestRaw, onChange, onDelete,
               <span className="text-sm text-slate-300">Telefonhívással triggerelt</span>
             </label>
             <label className="block text-xs text-slate-400 mb-1">SMS sablon (opcionális)</label>
-            <input className="input mb-1" value={scaleSmsTemplate} onChange={e => setScaleSmsTemplate(e.target.value)} placeholder="{weight} kg, {temp} C, {battery} V" />
-            <p className="text-xs text-slate-500 mb-4">Hagyd üresen a kaptárgsm-formátumhoz. Egyedi formátumnál: {'{weight}'}, {'{battery}'}, {'{temp}'}, {'{*}'} helyőrzők.</p>
+            <TemplateEditor value={scaleSmsTemplate} onChange={setScaleSmsTemplate} />
           </>
         )}
         <div className="flex justify-end gap-2">
@@ -329,6 +328,71 @@ export function SettingsPage({ scale, tareEvents, latestRaw, onChange, onDelete,
           </button>
         </div>
       </Modal>
+    </div>
+  )
+}
+
+const PLACEHOLDERS = [
+  { key: '{weight}',  label: 'súly',   cls: 'text-emerald-400' },
+  { key: '{temp}',    label: 'hőfok',  cls: 'text-orange-400'  },
+  { key: '{battery}', label: 'akku',   cls: 'text-sky-400'     },
+  { key: '{*}',       label: 'skip',   cls: 'text-slate-500'   },
+]
+
+function highlightTemplate(tpl: string) {
+  const parts = tpl.split(/(\{weight\}|\{temp\}|\{battery\}|\{\*\})/g)
+  return parts.map((part, i) => {
+    const ph = PLACEHOLDERS.find(p => p.key === part)
+    return ph
+      ? <span key={i} className={`${ph.cls} font-semibold`}>{part}</span>
+      : <span key={i} className="text-slate-300">{part}</span>
+  })
+}
+
+function TemplateEditor({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const ref = useRef<HTMLTextAreaElement>(null)
+
+  function insert(placeholder: string) {
+    const el = ref.current
+    if (!el) { onChange(value + placeholder); return }
+    const start = el.selectionStart
+    const end = el.selectionEnd
+    const next = value.slice(0, start) + placeholder + value.slice(end)
+    onChange(next)
+    setTimeout(() => {
+      el.selectionStart = el.selectionEnd = start + placeholder.length
+      el.focus()
+    }, 0)
+  }
+
+  return (
+    <div className="mb-4">
+      <div className="flex flex-wrap gap-1 mb-2">
+        {PLACEHOLDERS.map(ph => (
+          <button key={ph.key} type="button"
+            className="text-xs px-2 py-0.5 rounded bg-slate-700 hover:bg-slate-600 transition"
+            onClick={() => insert(ph.key)}>
+            <span className={ph.cls}>{ph.key}</span>
+            <span className="text-slate-500 ml-1">{ph.label}</span>
+          </button>
+        ))}
+      </div>
+      <textarea
+        ref={ref}
+        className="input font-mono text-sm resize-y min-h-[80px] whitespace-pre"
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        placeholder={'Suly: {weight}kg{*}Homero: {temp}{*}Akku: {battery}%'}
+        spellCheck={false}
+      />
+      {value && (
+        <div className="mt-1 font-mono text-xs whitespace-pre-wrap rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 leading-relaxed">
+          {highlightTemplate(value)}
+        </div>
+      )}
+      <p className="text-xs text-slate-500 mt-1">
+        Hagyd üresen az alapértelmezett kaptárgsm-formátumhoz. A {'{*}'} bármit átugor.
+      </p>
     </div>
   )
 }
