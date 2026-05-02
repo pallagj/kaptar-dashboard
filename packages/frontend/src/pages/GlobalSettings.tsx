@@ -97,8 +97,15 @@ export function GlobalSettings() {
           <h2 className="text-lg font-bold mb-4">Szinkron &amp; riasztások</h2>
           <div className="space-y-3">
             <div>
-              <label className="block text-xs text-slate-400 mb-1">Szinkron gyakoriság (perc)</label>
-              <input className="input" type="number" min={5} value={syncMin} onChange={e => setSyncMin(e.target.value)} />
+              <label className="block text-xs text-slate-400 mb-1">Szinkron gyakoriság</label>
+              <select className="input" value={syncMin} onChange={e => setSyncMin(e.target.value)}>
+                <option value="15">15 perc</option>
+                <option value="30">30 perc</option>
+                <option value="60">1 óra</option>
+                <option value="120">2 óra</option>
+                <option value="360">6 óra</option>
+              </select>
+              <p className="text-xs text-slate-500 mt-1">A rendszer 5 percenként ellenőrzi, hogy lejárt-e az intervallum.</p>
             </div>
             <div>
               <label className="block text-xs text-slate-400 mb-1">Rajzás-riasztás küszöb (kg)</label>

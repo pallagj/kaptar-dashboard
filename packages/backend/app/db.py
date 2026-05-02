@@ -11,7 +11,9 @@ DB_PATH = Path(os.environ.get("KAPTAR_DB", Path(__file__).resolve().parent.paren
 DEFAULT_OWNER_EMAIL = "pallagroland@gmail.com"
 DEFAULT_OWNER_NAME = "Roland Pallag"
 
-DEFAULT_SETTINGS = {
+DEFAULT_SETTINGS: dict[str, str] = {}  # no global user-facing settings remain
+
+DEFAULT_USER_SETTINGS = {
     "sync_interval_minutes": "30",
     "swarm_alert_kg": "1.5",
     "battery_warn_v": "5.6",
@@ -206,15 +208,19 @@ def init_db():
         for k, v in DEFAULT_SETTINGS.items():
             c.execute("INSERT OR IGNORE INTO settings(key,value) VALUES(?,?)", (k, v))
 
+        # Add last_synced_at to users if missing (idempotent).
+        if not _column_exists(c, "users", "last_synced_at"):
+            c.execute("ALTER TABLE users ADD COLUMN last_synced_at INTEGER")
+
         # One-shot migration: copy per-user settings from global table to Roland.
         if not c.execute("SELECT 1 FROM user_settings LIMIT 1").fetchone():
-            for k in ("swarm_alert_kg", "battery_warn_v"):
+            for k in ("sync_interval_minutes", "swarm_alert_kg", "battery_warn_v"):
                 row = c.execute("SELECT value FROM settings WHERE key=?", (k,)).fetchone()
-                if row:
-                    c.execute(
-                        "INSERT OR IGNORE INTO user_settings(user_id,key,value) VALUES(?,?,?)",
-                        (owner_id, k, row["value"]),
-                    )
+                v = row["value"] if row else DEFAULT_USER_SETTINGS[k]
+                c.execute(
+                    "INSERT OR IGNORE INTO user_settings(user_id,key,value) VALUES(?,?,?)",
+                    (owner_id, k, v),
+                )
         for fid, name in DEFAULT_FLOWERS:
             c.execute("INSERT OR IGNORE INTO flowers(id,name) VALUES(?,?)", (fid, name))
 
@@ -316,9 +322,6 @@ def set_setting(key: str, value: str):
         )
 
 
-_PER_USER_KEYS = {"swarm_alert_kg", "battery_warn_v"}
-
-
 def get_user_setting(user_id: int, key: str, default: str | None = None) -> str | None:
     with db() as c:
         row = c.execute(
@@ -326,7 +329,7 @@ def get_user_setting(user_id: int, key: str, default: str | None = None) -> str 
         ).fetchone()
         if row:
             return row["value"]
-    return get_setting(key, default)
+    return DEFAULT_USER_SETTINGS.get(key, default)
 
 
 def set_user_setting(user_id: int, key: str, value: str):

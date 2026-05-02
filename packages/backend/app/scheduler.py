@@ -1,40 +1,44 @@
 import asyncio
 import logging
+import time
+
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 
-from .db import get_setting
-from .scraper import sync_all_users
+from .db import db, get_user_setting
+from .scraper import sync_for_user
 
 log = logging.getLogger("kaptar.scheduler")
 
 _scheduler: AsyncIOScheduler | None = None
+POLL_MINUTES = 5  # how often the scheduler wakes up to check
 
 
 async def _job():
-    try:
-        res = await sync_all_users()
-        log.info("scheduled sync: %s", res)
-    except Exception:
-        log.exception("scheduled sync failed")
+    now_ms = int(time.time() * 1000)
+    with db() as c:
+        users = c.execute("SELECT id, last_synced_at FROM users").fetchall()
+    for u in users:
+        user_id = u["id"]
+        last_sync = u["last_synced_at"] or 0
+        interval_min = int(get_user_setting(user_id, "sync_interval_minutes", "30") or "30")
+        if now_ms - last_sync >= interval_min * 60 * 1000:
+            try:
+                res = await sync_for_user(user_id)
+                log.info("synced user %d: %s", user_id, res)
+            except Exception:
+                log.exception("sync failed for user %d", user_id)
+            with db() as c:
+                c.execute("UPDATE users SET last_synced_at=? WHERE id=?", (now_ms, user_id))
 
 
 def start_scheduler():
     global _scheduler
     if _scheduler is not None:
         return _scheduler
-    minutes = int(get_setting("sync_interval_minutes", "30") or "30")
     _scheduler = AsyncIOScheduler(timezone="Europe/Budapest")
-    _scheduler.add_job(_job, IntervalTrigger(minutes=minutes), id="sync", replace_existing=True, next_run_time=None)
+    _scheduler.add_job(_job, IntervalTrigger(minutes=POLL_MINUTES), id="sync", replace_existing=True, next_run_time=None)
     _scheduler.start()
-    # Kick off an initial fetch shortly after startup
     asyncio.get_event_loop().call_later(5, lambda: asyncio.create_task(_job()))
-    log.info("scheduler started, interval=%d min", minutes)
+    log.info("scheduler started, poll interval=%d min", POLL_MINUTES)
     return _scheduler
-
-
-def reschedule(minutes: int):
-    if _scheduler is None:
-        return
-    _scheduler.reschedule_job("sync", trigger=IntervalTrigger(minutes=minutes))
-    log.info("scheduler rescheduled: %d min", minutes)

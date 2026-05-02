@@ -13,7 +13,7 @@ from pydantic import BaseModel
 
 from .db import db, init_db, get_setting, set_setting, get_user_setting, set_user_setting
 from .scraper import sync_for_user
-from .scheduler import start_scheduler, reschedule
+from .scheduler import start_scheduler
 from .tare import list_events as tare_list, effective_offset, apply_offsets
 from .auth import (
     verify_google_id_token,
@@ -499,7 +499,7 @@ _SETTINGS_PRIVATE = {
 def get_settings(user: dict = Depends(current_user)):
     uid = user["id"]
     return {
-        "sync_interval_minutes": get_setting("sync_interval_minutes", "30"),
+        "sync_interval_minutes": get_user_setting(uid, "sync_interval_minutes", "30"),
         "swarm_alert_kg":        get_user_setting(uid, "swarm_alert_kg", "1.5"),
         "battery_warn_v":        get_user_setting(uid, "battery_warn_v", "5.6"),
     }
@@ -507,13 +507,8 @@ def get_settings(user: dict = Depends(current_user)):
 
 @app.patch("/api/settings")
 def update_settings(upd: SettingsUpdate, user: dict = Depends(current_user)):
-    data = upd.model_dump(exclude_none=True)
-    if "sync_interval_minutes" in data:
-        set_setting("sync_interval_minutes", str(data["sync_interval_minutes"]))
-        reschedule(int(data["sync_interval_minutes"]))
-    for k in ("swarm_alert_kg", "battery_warn_v"):
-        if k in data:
-            set_user_setting(user["id"], k, str(data[k]))
+    for k, v in upd.model_dump(exclude_none=True).items():
+        set_user_setting(user["id"], k, str(v))
     return {"ok": True}
 
 
