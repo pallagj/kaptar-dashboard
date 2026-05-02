@@ -30,7 +30,7 @@ export function GlobalSettings() {
   const [newScaleUrl, setNewScaleUrl] = useState('')
 
   function openNewScale() {
-    setNewScaleId('')
+    setNewScaleId(crypto.randomUUID())
     setNewScaleName('')
     setNewScaleType('kaptargsm')
     setNewScaleUrl('')
@@ -39,8 +39,6 @@ export function GlobalSettings() {
 
   function handleTypeChange(t: Scale['source_type']) {
     setNewScaleType(t)
-    if (t !== 'kaptargsm') setNewScaleId(crypto.randomUUID())
-    else setNewScaleId('')
   }
 
   function notify(m: string) {
@@ -216,17 +214,7 @@ export function GlobalSettings() {
           <option value="sms">SMS beküldés</option>
           <option value="manual">Manuális</option>
         </select>
-        {newScaleType === 'kaptargsm' ? (
-          <>
-            <label className="block text-xs text-slate-400 mb-1">Azonosító</label>
-            <input className="input mb-1" value={newScaleId} onChange={e => setNewScaleId(e.target.value)} placeholder="eszköz sorozatszáma" />
-            <p className="text-xs text-slate-500 mb-3 font-mono break-all">
-              https://www.kaptargsm.hu/scale/<span className="text-amber-400 font-semibold">AZONOSÍTÓ</span>.php
-            </p>
-          </>
-        ) : (
-          <p className="text-xs text-slate-500 mb-3">Azonosító automatikusan generálva.</p>
-        )}
+        <p className="text-xs text-slate-500 mb-3">Azonosító automatikusan generálva.</p>
         <label className="block text-xs text-slate-400 mb-1">Név</label>
         <input className="input mb-3" value={newScaleName} onChange={e => setNewScaleName(e.target.value)} placeholder="pl. Első kaptár" />
         {newScaleType === 'kaptargsm' && (
