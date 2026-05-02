@@ -195,7 +195,7 @@ function AdminSection({
   const [users, setUsers] = useState<{ id: number; email: string; name: string }[]>([])
 
   useEffect(() => {
-    api.adminUsers().then(setUsers).catch(() => {})
+    api.adminUsers().then(setUsers).catch((e: any) => notify('Admin hiba: ' + e.message))
   }, [])
 
   return (
