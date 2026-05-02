@@ -29,6 +29,20 @@ export function GlobalSettings() {
   const [newScaleType, setNewScaleType] = useState<Scale['source_type']>('kaptargsm')
   const [newScaleUrl, setNewScaleUrl] = useState('')
 
+  function openNewScale() {
+    setNewScaleId('')
+    setNewScaleName('')
+    setNewScaleType('kaptargsm')
+    setNewScaleUrl('')
+    setNewScaleOpen(true)
+  }
+
+  function handleTypeChange(t: Scale['source_type']) {
+    setNewScaleType(t)
+    if (t !== 'kaptargsm') setNewScaleId(crypto.randomUUID())
+    else setNewScaleId('')
+  }
+
   function notify(m: string) {
     setMsg(m)
     setTimeout(() => setMsg(''), 3500)
@@ -71,7 +85,7 @@ export function GlobalSettings() {
         <section className="card p-5">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-lg font-bold">Mérlegek</h2>
-            <button className="btn-primary" onClick={() => setNewScaleOpen(true)}>
+            <button className="btn-primary" onClick={openNewScale}>
               <Plus size={18} /> Új mérleg
             </button>
           </div>
@@ -197,17 +211,21 @@ export function GlobalSettings() {
       {/* Új mérleg modal */}
       <Modal open={newScaleOpen} onClose={() => setNewScaleOpen(false)} title="Új mérleg hozzáadása">
         <label className="block text-xs text-slate-400 mb-1">Típus</label>
-        <select className="input mb-3" value={newScaleType} onChange={e => setNewScaleType(e.target.value as Scale['source_type'])}>
+        <select className="input mb-3" value={newScaleType} onChange={e => handleTypeChange(e.target.value as Scale['source_type'])}>
           <option value="kaptargsm">KaptárGSM (automatikus szinkron)</option>
           <option value="sms">SMS beküldés</option>
           <option value="manual">Manuális</option>
         </select>
-        <label className="block text-xs text-slate-400 mb-1">Azonosító</label>
-        <input className="input mb-1" value={newScaleId} onChange={e => setNewScaleId(e.target.value)} placeholder="egyedi ID" />
-        {newScaleType === 'kaptargsm' && (
-          <p className="text-xs text-slate-500 mb-3 font-mono break-all">
-            https://www.kaptargsm.hu/scale/<span className="text-amber-400 font-semibold">AZONOSÍTÓ</span>.php
-          </p>
+        {newScaleType === 'kaptargsm' ? (
+          <>
+            <label className="block text-xs text-slate-400 mb-1">Azonosító</label>
+            <input className="input mb-1" value={newScaleId} onChange={e => setNewScaleId(e.target.value)} placeholder="eszköz sorozatszáma" />
+            <p className="text-xs text-slate-500 mb-3 font-mono break-all">
+              https://www.kaptargsm.hu/scale/<span className="text-amber-400 font-semibold">AZONOSÍTÓ</span>.php
+            </p>
+          </>
+        ) : (
+          <p className="text-xs text-slate-500 mb-3">Azonosító automatikusan generálva.</p>
         )}
         <label className="block text-xs text-slate-400 mb-1">Név</label>
         <input className="input mb-3" value={newScaleName} onChange={e => setNewScaleName(e.target.value)} placeholder="pl. Első kaptár" />
