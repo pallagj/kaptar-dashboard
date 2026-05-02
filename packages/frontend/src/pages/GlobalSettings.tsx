@@ -196,21 +196,26 @@ export function GlobalSettings() {
 
       {/* Új mérleg modal */}
       <Modal open={newScaleOpen} onClose={() => setNewScaleOpen(false)} title="Új mérleg hozzáadása">
-        <label className="block text-xs text-slate-400 mb-1">Azonosító (pl. J0102466)</label>
-        <input className="input mb-3" value={newScaleId} onChange={e => setNewScaleId(e.target.value)} placeholder="egyedi ID" />
-        <label className="block text-xs text-slate-400 mb-1">Név</label>
-        <input className="input mb-3" value={newScaleName} onChange={e => setNewScaleName(e.target.value)} placeholder="pl. Roli kaptára" />
         <label className="block text-xs text-slate-400 mb-1">Típus</label>
         <select className="input mb-3" value={newScaleType} onChange={e => setNewScaleType(e.target.value as Scale['source_type'])}>
           <option value="kaptargsm">KaptárGSM (automatikus szinkron)</option>
           <option value="sms">SMS beküldés</option>
           <option value="manual">Manuális</option>
         </select>
+        <label className="block text-xs text-slate-400 mb-1">Azonosító</label>
+        <input className="input mb-1" value={newScaleId} onChange={e => setNewScaleId(e.target.value)} placeholder="egyedi ID" />
+        {newScaleType === 'kaptargsm' && (
+          <p className="text-xs text-slate-500 mb-3 font-mono break-all">
+            https://www.kaptargsm.hu/scale/<span className="text-amber-400 font-semibold">AZONOSÍTÓ</span>.php
+          </p>
+        )}
+        <label className="block text-xs text-slate-400 mb-1">Név</label>
+        <input className="input mb-3" value={newScaleName} onChange={e => setNewScaleName(e.target.value)} placeholder="pl. Első kaptár" />
         {newScaleType === 'kaptargsm' && (
           <>
             <label className="block text-xs text-slate-400 mb-1">Forrás URL</label>
             <input className="input mb-4" value={newScaleUrl} onChange={e => setNewScaleUrl(e.target.value)}
-              placeholder="https://www.kaptargsm.hu/scale/XXXXXXXX.php" />
+              placeholder="https://www.kaptargsm.hu/scale/AZONOSÍTÓ.php" />
           </>
         )}
         <div className="flex justify-end gap-2">
