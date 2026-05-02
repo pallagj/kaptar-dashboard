@@ -212,15 +212,14 @@ def init_db():
         if not _column_exists(c, "users", "last_synced_at"):
             c.execute("ALTER TABLE users ADD COLUMN last_synced_at INTEGER")
 
-        # One-shot migration: copy per-user settings from global table to Roland.
-        if not c.execute("SELECT 1 FROM user_settings LIMIT 1").fetchone():
-            for k in ("sync_interval_minutes", "swarm_alert_kg", "battery_warn_v"):
-                row = c.execute("SELECT value FROM settings WHERE key=?", (k,)).fetchone()
-                v = row["value"] if row else DEFAULT_USER_SETTINGS[k]
-                c.execute(
-                    "INSERT OR IGNORE INTO user_settings(user_id,key,value) VALUES(?,?,?)",
-                    (owner_id, k, v),
-                )
+        # Seed Roland's per-user settings from global table (idempotent per key).
+        for k in DEFAULT_USER_SETTINGS:
+            row = c.execute("SELECT value FROM settings WHERE key=?", (k,)).fetchone()
+            v = row["value"] if row else DEFAULT_USER_SETTINGS[k]
+            c.execute(
+                "INSERT OR IGNORE INTO user_settings(user_id,key,value) VALUES(?,?,?)",
+                (owner_id, k, v),
+            )
         for fid, name in DEFAULT_FLOWERS:
             c.execute("INSERT OR IGNORE INTO flowers(id,name) VALUES(?,?)", (fid, name))
 
