@@ -105,7 +105,7 @@ export function GlobalSettings() {
                 <option value="120">2 óra</option>
                 <option value="360">6 óra</option>
               </select>
-              <p className="text-xs text-slate-500 mt-1">A rendszer 5 percenként ellenőrzi, hogy lejárt-e az intervallum.</p>
+              <p className="text-xs text-slate-500 mt-1">A rendszer 15 percenként ellenőrzi, hogy lejárt-e az intervallum.</p>
             </div>
             <div>
               <label className="block text-xs text-slate-400 mb-1">Rajzás-riasztás küszöb (kg)</label>

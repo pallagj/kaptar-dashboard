@@ -11,7 +11,7 @@ from .scraper import sync_for_user
 log = logging.getLogger("kaptar.scheduler")
 
 _scheduler: AsyncIOScheduler | None = None
-POLL_MINUTES = 5  # how often the scheduler wakes up to check
+POLL_MINUTES = 15  # matches the smallest available sync_interval_minutes option
 
 
 async def _job():
