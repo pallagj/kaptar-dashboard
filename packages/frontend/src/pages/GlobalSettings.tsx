@@ -17,6 +17,7 @@ export function GlobalSettings() {
   const [syncMin, setSyncMin] = useState('')
   const [swarmKg, setSwarmKg] = useState('')
   const [batteryV, setBatteryV] = useState('')
+  const [batteryPct, setBatteryPct] = useState('')
   const [newFlowerName, setNewFlowerName] = useState('')
 
   const [pushStatus, setPushStatus] = useState<Awaited<ReturnType<typeof getPushStatus>> | 'loading'>('loading')
@@ -35,6 +36,7 @@ export function GlobalSettings() {
       setSyncMin(s.sync_interval_minutes)
       setSwarmKg(s.swarm_alert_kg)
       setBatteryV(s.battery_warn_v)
+      setBatteryPct(s.battery_warn_pct)
     } finally {
       setLoading(false)
     }
@@ -83,11 +85,16 @@ export function GlobalSettings() {
               <label className="block text-xs text-slate-400 mb-1">Akku figyelmeztetés (V)</label>
               <input className="input" type="number" step="0.1" value={batteryV} onChange={e => setBatteryV(e.target.value)} />
             </div>
+            <div>
+              <label className="block text-xs text-slate-400 mb-1">Akku figyelmeztetés (%)</label>
+              <input className="input" type="number" step="1" value={batteryPct} onChange={e => setBatteryPct(e.target.value)} />
+            </div>
             <button className="btn-primary" onClick={async () => {
               await api.updateSettings({
                 sync_interval_minutes: Number(syncMin),
                 swarm_alert_kg: Number(swarmKg),
                 battery_warn_v: Number(batteryV),
+                battery_warn_pct: Number(batteryPct),
               })
               notify('Beállítások mentve')
               load()

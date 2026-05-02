@@ -88,6 +88,7 @@ export function ScaleDetail() {
   if (!scale || !settings) return null
 
   const batteryWarnV = Number(settings.battery_warn_v)
+  const batteryWarnPct = Number(settings.battery_warn_pct)
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -138,7 +139,7 @@ export function ScaleDetail() {
 
         <main>
           {tab === 'dashboard' && stats && (
-            <Dashboard stats={stats} batteryWarnV={batteryWarnV} batteryUnit={scale.battery_unit} range={range} setRange={setRange} />
+            <Dashboard stats={stats} batteryWarnV={batteryWarnV} batteryWarnPct={batteryWarnPct} batteryUnit={scale.battery_unit} range={range} setRange={setRange} />
           )}
           {tab === 'seasons' && (
             <Seasons

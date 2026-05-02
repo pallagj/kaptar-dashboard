@@ -17,6 +17,7 @@ DEFAULT_USER_SETTINGS = {
     "sync_interval_minutes": "30",
     "swarm_alert_kg": "1.5",
     "battery_warn_v": "5.6",
+    "battery_warn_pct": "20",
 }
 
 DEFAULT_FLOWERS = [
@@ -60,6 +61,20 @@ def _column_exists(c, table: str, column: str) -> bool:
     ).fetchone())
 
 
+def seed_user_defaults(c, user_id: int):
+    """Seed default user_settings and flowers for a new user. Idempotent."""
+    for k, v in DEFAULT_USER_SETTINGS.items():
+        c.execute(
+            "INSERT OR IGNORE INTO user_settings(user_id,key,value) VALUES(?,?,?)",
+            (user_id, k, v),
+        )
+    for fid, name in DEFAULT_FLOWERS:
+        c.execute(
+            "INSERT OR IGNORE INTO flowers(user_id,id,name) VALUES(?,?,?)",
+            (user_id, fid, name),
+        )
+
+
 def init_db():
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     with db() as c:
@@ -80,8 +95,11 @@ def init_db():
         """)
         c.execute("""
             CREATE TABLE IF NOT EXISTS flowers (
-                id   TEXT PRIMARY KEY,
-                name TEXT NOT NULL
+                user_id INTEGER NOT NULL,
+                id      TEXT NOT NULL,
+                name    TEXT NOT NULL,
+                PRIMARY KEY (user_id, id),
+                FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
             )
         """)
         c.execute("""
@@ -222,16 +240,29 @@ def init_db():
         if not _column_exists(c, "scales", "battery_unit"):
             c.execute("ALTER TABLE scales ADD COLUMN battery_unit TEXT NOT NULL DEFAULT 'V'")
 
-        # Seed Roland's per-user settings from global table (idempotent per key).
-        for k in DEFAULT_USER_SETTINGS:
-            row = c.execute("SELECT value FROM settings WHERE key=?", (k,)).fetchone()
-            v = row["value"] if row else DEFAULT_USER_SETTINGS[k]
-            c.execute(
-                "INSERT OR IGNORE INTO user_settings(user_id,key,value) VALUES(?,?,?)",
-                (owner_id, k, v),
-            )
-        for fid, name in DEFAULT_FLOWERS:
-            c.execute("INSERT OR IGNORE INTO flowers(id,name) VALUES(?,?)", (fid, name))
+        # Migrate global flowers table to per-user (idempotent).
+        if _table_exists(c, "flowers") and not _column_exists(c, "flowers", "user_id"):
+            old_flowers = c.execute("SELECT id, name FROM flowers").fetchall()
+            users = c.execute("SELECT id FROM users").fetchall()
+            c.execute("DROP TABLE flowers")
+            c.execute("""
+                CREATE TABLE flowers (
+                    user_id INTEGER NOT NULL,
+                    id      TEXT NOT NULL,
+                    name    TEXT NOT NULL,
+                    PRIMARY KEY (user_id, id),
+                    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+                )
+            """)
+            for u in users:
+                for row in old_flowers:
+                    c.execute(
+                        "INSERT OR IGNORE INTO flowers(user_id,id,name) VALUES(?,?,?)",
+                        (u["id"], row["id"], row["name"]),
+                    )
+
+        # Seed Roland's defaults (settings + flowers) — idempotent.
+        seed_user_defaults(c, owner_id)
 
         # Fresh install: seed Roland's original scale so he sees something right away.
         any_scale = c.execute("SELECT 1 FROM scales LIMIT 1").fetchone()

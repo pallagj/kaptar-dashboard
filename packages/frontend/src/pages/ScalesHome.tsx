@@ -82,6 +82,7 @@ export function ScalesHome() {
   }
 
   const batteryWarnV = settings ? Number(settings.battery_warn_v) : 5.6
+  const batteryWarnPct = settings ? Number(settings.battery_warn_pct) : 20
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -121,7 +122,7 @@ export function ScalesHome() {
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {scales.map(s => (
-              <ScaleCard key={s.id} scale={s} batteryWarnV={batteryWarnV} />
+              <ScaleCard key={s.id} scale={s} batteryWarnV={batteryWarnV} batteryWarnPct={batteryWarnPct} />
             ))}
           </div>
         )}

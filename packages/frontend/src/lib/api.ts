@@ -140,6 +140,7 @@ export interface Settings {
   sync_interval_minutes: string
   swarm_alert_kg: string
   battery_warn_v: string
+  battery_warn_pct: string
 }
 
 export type ScaleUpdate = Partial<

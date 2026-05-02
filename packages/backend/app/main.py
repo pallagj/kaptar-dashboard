@@ -11,7 +11,7 @@ from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from .db import db, init_db, get_setting, set_setting, get_user_setting, set_user_setting
+from .db import db, init_db, get_setting, set_setting, get_user_setting, set_user_setting, seed_user_defaults
 from .scraper import sync_for_user
 from .scheduler import start_scheduler
 from .tare import list_events as tare_list, effective_offset, apply_offsets
@@ -94,6 +94,7 @@ class SettingsUpdate(BaseModel):
     sync_interval_minutes: Optional[int] = None
     swarm_alert_kg: Optional[float] = None
     battery_warn_v: Optional[float] = None
+    battery_warn_pct: Optional[float] = None
 
 
 class AccountUpdate(BaseModel):
@@ -207,10 +208,10 @@ def list_scales(user: dict = Depends(current_user)):
 
             active = c.execute(
                 "SELECT s.flower_id, f.name as flower_name, s.start_ts, s.start_weight "
-                "FROM seasons s LEFT JOIN flowers f ON f.id=s.flower_id "
+                "FROM seasons s LEFT JOIN flowers f ON f.id=s.flower_id AND f.user_id=? "
                 "WHERE s.scale_id=? AND s.end_ts IS NULL "
                 "ORDER BY s.start_ts DESC LIMIT 1",
-                (scale_id,),
+                (user["id"], scale_id),
             ).fetchone()
 
             d["summary"] = {
@@ -361,20 +362,22 @@ async def manual_sync(user: dict = Depends(current_user)):
 @app.get("/api/flowers")
 def list_flowers(user: dict = Depends(current_user)):
     with db() as c:
-        return [dict(r) for r in c.execute("SELECT id,name FROM flowers ORDER BY name").fetchall()]
+        return [dict(r) for r in c.execute(
+            "SELECT id,name FROM flowers WHERE user_id=? ORDER BY name", (user["id"],)
+        ).fetchall()]
 
 
 @app.post("/api/flowers")
 def create_flower(f: Flower, user: dict = Depends(current_user)):
     with db() as c:
-        c.execute("INSERT OR REPLACE INTO flowers(id,name) VALUES(?,?)", (f.id, f.name))
+        c.execute("INSERT OR REPLACE INTO flowers(user_id,id,name) VALUES(?,?,?)", (user["id"], f.id, f.name))
     return {"ok": True}
 
 
 @app.delete("/api/flowers/{flower_id}")
 def delete_flower(flower_id: str, user: dict = Depends(current_user)):
     with db() as c:
-        c.execute("DELETE FROM flowers WHERE id=?", (flower_id,))
+        c.execute("DELETE FROM flowers WHERE user_id=? AND id=?", (user["id"], flower_id))
     return {"ok": True}
 
 
@@ -387,9 +390,9 @@ def list_seasons(scale_id: str, user: dict = Depends(current_user)):
         rows = c.execute(
             "SELECT s.id,s.scale_id,s.flower_id,f.name as flower_name,s.start_ts,s.end_ts,"
             "s.start_weight,s.end_weight,s.latitude,s.longitude,s.location_name "
-            "FROM seasons s LEFT JOIN flowers f ON f.id=s.flower_id "
+            "FROM seasons s LEFT JOIN flowers f ON f.id=s.flower_id AND f.user_id=? "
             "WHERE s.scale_id=? ORDER BY s.start_ts DESC",
-            (scale_id,),
+            (user["id"], scale_id),
         ).fetchall()
         return [dict(r) for r in rows]
 
@@ -549,6 +552,7 @@ def get_settings(user: dict = Depends(current_user)):
         "sync_interval_minutes": get_user_setting(uid, "sync_interval_minutes", "30"),
         "swarm_alert_kg":        get_user_setting(uid, "swarm_alert_kg", "1.5"),
         "battery_warn_v":        get_user_setting(uid, "battery_warn_v", "5.6"),
+        "battery_warn_pct":      get_user_setting(uid, "battery_warn_pct", "20"),
     }
 
 
@@ -628,9 +632,9 @@ def stats(scale_id: str, user: dict = Depends(current_user)):
         tare_offset = float(events[-1]["offset"]) if events else 0.0
 
         active = c.execute(
-            "SELECT s.*, f.name as flower_name FROM seasons s LEFT JOIN flowers f ON f.id=s.flower_id "
+            "SELECT s.*, f.name as flower_name FROM seasons s LEFT JOIN flowers f ON f.id=s.flower_id AND f.user_id=? "
             "WHERE s.scale_id=? AND s.end_ts IS NULL ORDER BY s.start_ts DESC LIMIT 1",
-            (scale_id,),
+            (user["id"], scale_id),
         ).fetchone()
         active = dict(active) if active else None
 

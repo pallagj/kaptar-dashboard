@@ -19,7 +19,7 @@ from fastapi import HTTPException, Request
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 
-from .db import db, get_setting, set_setting
+from .db import db, get_setting, set_setting, seed_user_defaults
 
 JWT_ALG = "HS256"
 JWT_TTL_DAYS = 90  # long-lived so offline read-only stays available for a while
@@ -87,6 +87,7 @@ def upsert_user_from_google(info: dict) -> dict:
             (sub, email, name, picture, secrets.token_urlsafe(32), now),
         )
         uid = c.execute("SELECT last_insert_rowid() AS id").fetchone()["id"]
+        seed_user_defaults(c, uid)
         return dict(c.execute("SELECT * FROM users WHERE id=?", (uid,)).fetchone())
 
 

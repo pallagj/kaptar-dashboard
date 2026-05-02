@@ -16,12 +16,13 @@ const SOURCE_META: Record<Scale['source_type'], { icon: JSX.Element; label: stri
   manual: { icon: <PencilRuler size={11} />, label: 'Manuális' },
 }
 
-export function ScaleCard({ scale, batteryWarnV = 5.6 }: { scale: Scale; batteryWarnV?: number }) {
+export function ScaleCard({ scale, batteryWarnV = 5.6, batteryWarnPct = 20 }: { scale: Scale; batteryWarnV?: number; batteryWarnPct?: number }) {
   const s = scale.summary
   const delta = s.delta_24h
   const deltaClass = delta == null ? 'text-slate-400' : delta >= 0 ? 'text-emerald-400' : 'text-red-400'
   const battery = s.battery
-  const batteryLow = battery !== null && battery < batteryWarnV
+  const warnThreshold = scale.battery_unit === '%' ? batteryWarnPct : batteryWarnV
+  const batteryLow = battery !== null && battery < warnThreshold
   const src = SOURCE_META[scale.source_type]
   return (
     <Link
