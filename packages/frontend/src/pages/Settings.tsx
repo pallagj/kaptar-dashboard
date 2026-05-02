@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react'
-import { Plus, Trash2, Scale, Pencil, History, Bell, BellOff } from 'lucide-react'
-import { api, type Flower, type Hive, type Settings as S, type TareEvent } from '../lib/api'
+import { Plus, Trash2, Scale as ScaleIcon, Pencil, History, Bell, BellOff } from 'lucide-react'
+import { api, type Flower, type Scale, type Settings as S, type TareEvent } from '../lib/api'
 import { Modal } from '../components/Modal'
 import { fmtDate } from '../lib/format'
 import { getPushStatus, subscribe as pushSubscribe, unsubscribe as pushUnsubscribe } from '../lib/push'
 
 interface Props {
-  hive: Hive
+  scale: Scale
   flowers: Flower[]
   settings: S
   tareEvents: TareEvent[]
@@ -15,7 +15,7 @@ interface Props {
   notify: (m: string) => void
 }
 
-export function SettingsPage({ hive, flowers, settings, tareEvents, latestRaw, onChange, notify }: Props) {
+export function SettingsPage({ scale, flowers, settings, tareEvents, latestRaw, onChange, notify }: Props) {
   const [newFlowerName, setNewFlowerName] = useState('')
   const [tareOpen, setTareOpen] = useState(false)
   const [tarePre, setTarePre] = useState('')
@@ -38,19 +38,19 @@ export function SettingsPage({ hive, flowers, settings, tareEvents, latestRaw, o
   useEffect(() => { getPushStatus().then(setPushStatus) }, [])
   async function refreshPushStatus() { setPushStatus(await getPushStatus()) }
 
-  const [hiveOpen, setHiveOpen] = useState(false)
-  const [hiveName, setHiveName] = useState(hive.name)
-  const [hiveUrl, setHiveUrl] = useState(hive.source_url)
+  const [scaleOpen, setScaleOpen] = useState(false)
+  const [scaleName, setScaleName] = useState(scale.name)
+  const [scaleUrl, setScaleUrl] = useState(scale.source_url ?? '')
 
   const [alertsOpen, setAlertsOpen] = useState(false)
   const [syncMin, setSyncMin] = useState(String(settings.sync_interval_minutes))
   const [swarmKg, setSwarmKg] = useState(String(settings.swarm_alert_kg))
   const [batteryV, setBatteryV] = useState(String(settings.battery_warn_v))
 
-  function openHiveEdit() {
-    setHiveName(hive.name)
-    setHiveUrl(hive.source_url)
-    setHiveOpen(true)
+  function openScaleEdit() {
+    setScaleName(scale.name)
+    setScaleUrl(scale.source_url ?? '')
+    setScaleOpen(true)
   }
 
   function openAlertsEdit() {
@@ -65,21 +65,21 @@ export function SettingsPage({ hive, flowers, settings, tareEvents, latestRaw, o
       <section className="card p-5">
         <div className="flex items-start justify-between mb-3 gap-3">
           <div>
-            <h2 className="text-lg font-bold">Kaptár</h2>
+            <h2 className="text-lg font-bold">Mérleg</h2>
             <p className="text-sm text-slate-400">A forrás URL-ről parse-olja a backend a méréseket.</p>
           </div>
-          <button className="btn-ghost shrink-0" onClick={openHiveEdit} title="Szerkesztés" aria-label="Szerkesztés">
+          <button className="btn-ghost shrink-0" onClick={openScaleEdit} title="Szerkesztés" aria-label="Szerkesztés">
             <Pencil size={16} />
           </button>
         </div>
         <dl className="grid sm:grid-cols-2 gap-3 text-sm">
-          <Field label="Név" value={hive.name} />
-          <Field label="Forrás URL" value={hive.source_url} mono />
-          <Field label="Tára-eltolás" value={`${hive.tare_offset.toFixed(2)} kg`} mono />
+          <Field label="Név" value={scale.name} />
+          <Field label="Forrás URL" value={scale.source_url ?? '—'} mono />
+          <Field label="Tára-eltolás" value={`${scale.tare_offset.toFixed(2)} kg`} mono />
         </dl>
         <div className="mt-4">
           <button className="btn-ghost" onClick={openTare}>
-            <Scale size={18} /> Tárázás
+            <ScaleIcon size={18} /> Tárázás
           </button>
         </div>
       </section>
@@ -268,19 +268,19 @@ export function SettingsPage({ hive, flowers, settings, tareEvents, latestRaw, o
         </ul>
       </section>
 
-      <Modal open={hiveOpen} onClose={() => setHiveOpen(false)} title="Kaptár szerkesztése">
+      <Modal open={scaleOpen} onClose={() => setScaleOpen(false)} title="Mérleg szerkesztése">
         <label className="block text-xs text-slate-400 mb-1">Név</label>
-        <input className="input mb-3" value={hiveName} onChange={e => setHiveName(e.target.value)} />
+        <input className="input mb-3" value={scaleName} onChange={e => setScaleName(e.target.value)} />
         <label className="block text-xs text-slate-400 mb-1">Forrás URL</label>
-        <input className="input mb-4" value={hiveUrl} onChange={e => setHiveUrl(e.target.value)} />
+        <input className="input mb-4" value={scaleUrl} onChange={e => setScaleUrl(e.target.value)} />
         <div className="flex justify-end gap-2">
-          <button className="btn-ghost" onClick={() => setHiveOpen(false)}>Mégse</button>
+          <button className="btn-ghost" onClick={() => setScaleOpen(false)}>Mégse</button>
           <button
             className="btn-primary"
             onClick={async () => {
-              await api.updateHive(hive.id, { name: hiveName, source_url: hiveUrl })
-              setHiveOpen(false)
-              notify('Kaptár frissítve')
+              await api.updateScale(scale.id, { name: scaleName, source_url: scaleUrl || null })
+              setScaleOpen(false)
+              notify('Mérleg frissítve')
               onChange()
             }}
           >
@@ -348,7 +348,7 @@ export function SettingsPage({ hive, flowers, settings, tareEvents, latestRaw, o
           const pre = Number(tarePre)
           const post = Number(tarePost)
           if (!tarePre || !tarePost || !isFinite(pre) || !isFinite(post)) return null
-          const preNet = pre - hive.tare_offset
+          const preNet = pre - scale.tare_offset
           const boxDelta = post - pre
           const target = tareAdvanced && tareTarget ? Number(tareTarget) : preNet
           const newOffset = post - target
@@ -399,7 +399,7 @@ export function SettingsPage({ hive, flowers, settings, tareEvents, latestRaw, o
               const pre = Number(tarePre)
               const post = Number(tarePost)
               const tgt = tareAdvanced && tareTarget ? Number(tareTarget) : undefined
-              const preNet = pre - hive.tare_offset
+              const preNet = pre - scale.tare_offset
               const finalTarget = tgt !== undefined ? tgt : preNet
               const newOffset = post - finalTarget
               if (!confirm(
@@ -408,7 +408,7 @@ export function SettingsPage({ hive, flowers, settings, tareEvents, latestRaw, o
                 `Cél nettó: ${finalTarget.toFixed(2)} kg\n` +
                 `Új eltolás: ${newOffset.toFixed(2)} kg\nFolytatod?`
               )) return
-              await api.tare(hive.id, pre, post, tgt, tareNote.trim() || undefined)
+              await api.tare(scale.id, pre, post, tgt, tareNote.trim() || undefined)
               setTareOpen(false)
               notify('Tárázás mentve')
               onChange()

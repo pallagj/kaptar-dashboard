@@ -12,7 +12,7 @@ import { fmtSigned, daysBetween } from '../lib/format'
 const COLORS = ['#f59e0b', '#10b981', '#38bdf8', '#a78bfa', '#f472b6', '#fbbf24', '#34d399', '#60a5fa']
 
 interface Props {
-  hiveId: string
+  scaleId: string
   seasons: Season[]
   flowers: Flower[]
   history: Measurement[]
@@ -20,7 +20,7 @@ interface Props {
   notify: (m: string) => void
 }
 
-export function Seasons({ hiveId, seasons, flowers, history, onChange, notify }: Props) {
+export function Seasons({ scaleId, seasons, flowers, history, onChange, notify }: Props) {
   const [showStart, setShowStart] = useState(false)
   const [selectedFlower, setSelectedFlower] = useState('')
   const [pieView, setPieView] = useState<'chart' | 'table'>('chart')
@@ -267,7 +267,7 @@ export function Seasons({ hiveId, seasons, flowers, history, onChange, notify }:
                           title="Szezon lezárása"
                           onClick={async () => {
                             if (!confirm(`Biztosan lezárod a(z) "${s.flower_name ?? s.flower_id}" szezont?`)) return
-                            await api.closeSeason(hiveId)
+                            await api.closeSeason(scaleId)
                             notify('Szezon lezárva')
                             onChange()
                           }}
@@ -320,7 +320,7 @@ export function Seasons({ hiveId, seasons, flowers, history, onChange, notify }:
             disabled={!selectedFlower}
             onClick={async () => {
               try {
-                await api.startSeason(hiveId, selectedFlower)
+                await api.startSeason(scaleId, selectedFlower)
                 notify('Új szezon indítva')
                 setShowStart(false)
                 setSelectedFlower('')

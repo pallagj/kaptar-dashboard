@@ -1,5 +1,6 @@
 from __future__ import annotations
 import logging
+import os
 import secrets
 import sqlite3
 import time
@@ -128,6 +129,13 @@ def _public_user(u: dict) -> dict:
 @app.get("/api/health")
 def health():
     return {"ok": True, "ts": int(time.time() * 1000)}
+
+
+@app.get("/api/auth/config")
+def auth_config():
+    """Public config the login page needs (Google OAuth client id)."""
+    cid = os.environ.get("GOOGLE_CLIENT_ID") or get_setting("google_client_id")
+    return {"google_client_id": cid or ""}
 
 
 @app.post("/api/auth/google")
