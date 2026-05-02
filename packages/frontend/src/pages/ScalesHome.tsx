@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { RefreshCw, LogOut } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { RefreshCw, LogOut, Settings } from 'lucide-react'
 import { api, type Scale, type Settings as S } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import { ScaleCard } from '../components/ScaleCard'
 
 export function ScalesHome() {
+  const navigate = useNavigate()
   const { user, logout } = useAuth()
   const [scales, setScales] = useState<Scale[]>([])
   const [settings, setSettings] = useState<S | null>(null)
@@ -76,6 +78,9 @@ export function ScalesHome() {
             <button className="btn-primary" onClick={handleSync} disabled={syncing}>
               <RefreshCw size={18} className={syncing ? 'animate-spin' : ''} />
               <span className="hidden sm:inline">Szinkron</span>
+            </button>
+            <button className="btn-ghost" onClick={() => navigate('/settings')} title="Beállítások">
+              <Settings size={18} />
             </button>
             <button className="btn-ghost" onClick={logout} title="Kijelentkezés">
               <LogOut size={18} />

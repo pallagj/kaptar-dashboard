@@ -5,6 +5,7 @@ import { useAuth } from './lib/auth'
 import { Login } from './pages/Login'
 import { ScalesHome } from './pages/ScalesHome'
 import { ScaleDetail } from './pages/ScaleDetail'
+import { GlobalSettings } from './pages/GlobalSettings'
 
 function AuthGuard({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth()
@@ -23,6 +24,7 @@ export default function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/" element={<AuthGuard><ScalesHome /></AuthGuard>} />
       <Route path="/scale/:scaleId" element={<AuthGuard><ScaleDetail /></AuthGuard>} />
+      <Route path="/settings" element={<AuthGuard><GlobalSettings /></AuthGuard>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )
