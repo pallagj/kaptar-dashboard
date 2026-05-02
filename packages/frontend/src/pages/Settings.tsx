@@ -24,6 +24,7 @@ export function SettingsPage({ scale, tareEvents, latestRaw, onChange, onDelete,
   const [scalePhone, setScalePhone] = useState(scale.phone_number ?? '')
   const [scaleSmsTemplate, setScaleSmsTemplate] = useState(scale.sms_template ?? '')
   const [scaleCallTrigger, setScaleCallTrigger] = useState(!!scale.call_trigger)
+  const [scaleBatteryUnit, setScaleBatteryUnit] = useState(scale.battery_unit ?? 'V')
 
   function openScaleEdit() {
     setScaleName(scale.name)
@@ -31,6 +32,7 @@ export function SettingsPage({ scale, tareEvents, latestRaw, onChange, onDelete,
     setScalePhone(scale.phone_number ?? '')
     setScaleSmsTemplate(scale.sms_template ?? '')
     setScaleCallTrigger(!!scale.call_trigger)
+    setScaleBatteryUnit(scale.battery_unit ?? 'V')
     setScaleOpen(true)
   }
 
@@ -218,6 +220,14 @@ export function SettingsPage({ scale, tareEvents, latestRaw, onChange, onDelete,
       <Modal open={scaleOpen} onClose={() => setScaleOpen(false)} title="Mérleg szerkesztése">
         <label className="block text-xs text-slate-400 mb-1">Név</label>
         <input className="input mb-3" value={scaleName} onChange={e => setScaleName(e.target.value)} />
+        <label className="block text-xs text-slate-400 mb-1">Akkumulátor egység</label>
+        <div className="flex gap-2 mb-4">
+          {['V', '%'].map(u => (
+            <button key={u} type="button"
+              className={`px-4 py-1.5 rounded text-sm font-medium border transition ${scaleBatteryUnit === u ? 'bg-honey-500/20 text-honey-300 border-honey-700/60' : 'text-slate-400 border-slate-700 hover:border-slate-500'}`}
+              onClick={() => setScaleBatteryUnit(u)}>{u}</button>
+          ))}
+        </div>
         {scale.source_type === 'kaptargsm' && (
           <>
             <label className="block text-xs text-slate-400 mb-1">Forrás URL</label>
@@ -241,6 +251,7 @@ export function SettingsPage({ scale, tareEvents, latestRaw, onChange, onDelete,
           <button className="btn-primary" onClick={async () => {
             await api.updateScale(scale.id, {
               name: scaleName,
+              battery_unit: scaleBatteryUnit,
               source_url: scale.source_type === 'kaptargsm' ? (scaleUrl || null) : undefined,
               phone_number: scale.source_type === 'sms' ? (scalePhone.trim() || null) : undefined,
               sms_template: scale.source_type === 'sms' ? (scaleSmsTemplate.trim() || null) : undefined,

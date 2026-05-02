@@ -131,6 +131,7 @@ def init_db():
                 phone_number  TEXT,
                 sms_template  TEXT,
                 call_trigger  INTEGER NOT NULL DEFAULT 0,
+                battery_unit  TEXT NOT NULL DEFAULT 'V',
                 latitude      REAL,
                 longitude     REAL,
                 location_name TEXT,
@@ -216,6 +217,10 @@ def init_db():
         # Add call_trigger to scales if missing (idempotent).
         if not _column_exists(c, "scales", "call_trigger"):
             c.execute("ALTER TABLE scales ADD COLUMN call_trigger INTEGER NOT NULL DEFAULT 0")
+
+        # Add battery_unit to scales if missing (idempotent).
+        if not _column_exists(c, "scales", "battery_unit"):
+            c.execute("ALTER TABLE scales ADD COLUMN battery_unit TEXT NOT NULL DEFAULT 'V'")
 
         # Seed Roland's per-user settings from global table (idempotent per key).
         for k in DEFAULT_USER_SETTINGS:

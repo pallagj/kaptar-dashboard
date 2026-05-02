@@ -65,7 +65,7 @@ export function ScaleCard({ scale, batteryWarnV = 5.6 }: { scale: Scale; battery
           </div>
           <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-800">
             <span className={`flex items-center gap-1 text-xs ${batteryLow ? 'text-amber-400' : 'text-slate-500'}`}>
-              <Battery size={14} /> {battery !== null ? `${battery.toFixed(1)} V` : '—'}
+              <Battery size={14} /> {battery !== null ? (scale.battery_unit === '%' ? `${battery.toFixed(0)} %` : `${battery.toFixed(1)} V`) : '—'}
             </span>
             {s.latest_timestamp && (
               <span className="text-xs text-slate-500">{ago(s.latest_timestamp)}</span>

@@ -13,11 +13,12 @@ type Range = '24h' | '7d' | '30d' | 'all'
 interface Props {
   stats: Stats
   batteryWarnV: number
+  batteryUnit?: string
   range: Range
   setRange: (r: Range) => void
 }
 
-export function Dashboard({ stats, batteryWarnV, range, setRange }: Props) {
+export function Dashboard({ stats, batteryWarnV, batteryUnit = 'V', range, setRange }: Props) {
   const [mainView, setMainView] = useState<'chart' | 'table'>('chart')
   const [diffView, setDiffView] = useState<'chart' | 'table'>('chart')
 
@@ -120,7 +121,7 @@ export function Dashboard({ stats, batteryWarnV, range, setRange }: Props) {
           sub={`7 nap: ${fmtSigned(stats.delta_7d)}`}
           accent={stats.delta_24h && stats.delta_24h >= 0 ? 'text-emerald-400' : 'text-red-400'}
         />
-        <BatteryGauge voltage={stats.latest.battery} warnV={batteryWarnV} />
+        <BatteryGauge voltage={stats.latest.battery} warnV={batteryWarnV} unit={batteryUnit} />
       </div>
 
       {/* Alerts */}

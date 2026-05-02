@@ -138,7 +138,7 @@ export function ScaleDetail() {
 
         <main>
           {tab === 'dashboard' && stats && (
-            <Dashboard stats={stats} batteryWarnV={batteryWarnV} range={range} setRange={setRange} />
+            <Dashboard stats={stats} batteryWarnV={batteryWarnV} batteryUnit={scale.battery_unit} range={range} setRange={setRange} />
           )}
           {tab === 'seasons' && (
             <Seasons

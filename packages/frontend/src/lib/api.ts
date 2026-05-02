@@ -125,6 +125,7 @@ export interface Scale {
   phone_number: string | null
   sms_template: string | null
   call_trigger: number  // 0 | 1 (sqlite boolean)
+  battery_unit: string  // 'V' | '%'
   latitude: number | null
   longitude: number | null
   location_name: string | null
@@ -143,7 +144,7 @@ export interface Settings {
 
 export type ScaleUpdate = Partial<
   Pick<Scale, 'name' | 'source_type' | 'source_url' | 'phone_number' | 'sms_template'
-    | 'call_trigger' | 'latitude' | 'longitude' | 'location_name'>
+    | 'call_trigger' | 'battery_unit' | 'latitude' | 'longitude' | 'location_name'>
 >
 
 export const api = {

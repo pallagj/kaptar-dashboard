@@ -58,6 +58,7 @@ class ScaleIn(BaseModel):
     phone_number: Optional[str] = None
     sms_template: Optional[str] = None
     call_trigger: bool = False
+    battery_unit: str = "V"
     latitude: Optional[float] = None
     longitude: Optional[float] = None
     location_name: Optional[str] = None
@@ -70,6 +71,7 @@ class ScaleUpdate(BaseModel):
     phone_number: Optional[str] = None
     sms_template: Optional[str] = None
     call_trigger: Optional[bool] = None
+    battery_unit: Optional[str] = None
     latitude: Optional[float] = None
     longitude: Optional[float] = None
     location_name: Optional[str] = None
