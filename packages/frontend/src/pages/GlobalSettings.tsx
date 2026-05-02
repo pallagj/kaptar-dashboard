@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Plus, Trash2, Bell, BellOff } from 'lucide-react'
-import { api, type Flower, type Settings as S } from '../lib/api'
+import { api, getAuthToken, setAuthToken, type Flower, type Settings as S } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import { getPushStatus, subscribe as pushSubscribe, unsubscribe as pushUnsubscribe } from '../lib/push'
+import { ADMIN_TOKEN_KEY } from '../App'
 
 export function GlobalSettings() {
   const navigate = useNavigate()
-  const { user } = useAuth()
+  const { user, refresh } = useAuth()
   const [settings, setSettings] = useState<S | null>(null)
   const [flowers, setFlowers] = useState<Flower[]>([])
   const [loading, setLoading] = useState(true)
@@ -136,6 +137,11 @@ export function GlobalSettings() {
           )}
         </section>
 
+        {/* Admin */}
+        {user?.email === 'pallagj@gmail.com' && (
+          <AdminSection notify={notify} navigate={navigate} refresh={refresh} />
+        )}
+
         {/* Virágok */}
         <section className="card p-5">
           <h2 className="text-lg font-bold mb-3">Virágok katalógus</h2>
@@ -174,5 +180,53 @@ export function GlobalSettings() {
         </section>
       </div>
     </div>
+  )
+}
+
+function AdminSection({
+  notify,
+  navigate,
+  refresh,
+}: {
+  notify: (m: string) => void
+  navigate: (path: string) => void
+  refresh: () => Promise<void>
+}) {
+  const [users, setUsers] = useState<{ id: number; email: string; name: string }[]>([])
+
+  useEffect(() => {
+    api.adminUsers().then(setUsers).catch(() => {})
+  }, [])
+
+  return (
+    <section className="card p-5 border border-amber-700/40">
+      <h2 className="text-lg font-bold text-amber-400 mb-3">Admin — impersonálás</h2>
+      <ul className="divide-y divide-slate-800">
+        {users.filter(u => u.email !== 'pallagj@gmail.com').map(u => (
+          <li key={u.id} className="py-2 flex items-center justify-between gap-3">
+            <div>
+              <span className="text-slate-200">{u.name || '—'}</span>
+              <span className="text-xs text-slate-500 ml-2">{u.email}</span>
+            </div>
+            <button
+              className="btn-ghost text-amber-400 shrink-0"
+              onClick={async () => {
+                const adminToken = getAuthToken()!
+                sessionStorage.setItem(ADMIN_TOKEN_KEY, adminToken)
+                const res = await api.adminImpersonate(u.id)
+                setAuthToken(res.token)
+                await refresh()
+                navigate('/')
+              }}
+            >
+              Belépés nevében
+            </button>
+          </li>
+        ))}
+        {users.filter(u => u.email !== 'pallagj@gmail.com').length === 0 && (
+          <li className="py-2 text-sm text-slate-500">Még nincs más felhasználó.</li>
+        )}
+      </ul>
+    </section>
   )
 }

@@ -579,6 +579,35 @@ def rotate_ingest_token(user: dict = Depends(current_user)):
     return {"ingest_token": new_token}
 
 
+# ─────────── Admin ───────────
+
+SUPERADMIN_EMAIL = "pallagj@gmail.com"
+
+
+def _require_superadmin(user: dict):
+    if user["email"] != SUPERADMIN_EMAIL:
+        raise HTTPException(403, "Nincs jogosultság")
+
+
+@app.get("/api/admin/users")
+def admin_list_users(user: dict = Depends(current_user)):
+    _require_superadmin(user)
+    with db() as c:
+        rows = c.execute("SELECT id, email, name FROM users ORDER BY id").fetchall()
+    return [dict(r) for r in rows]
+
+
+@app.post("/api/admin/impersonate")
+def admin_impersonate(target_id: int, user: dict = Depends(current_user)):
+    _require_superadmin(user)
+    with db() as c:
+        target = c.execute("SELECT * FROM users WHERE id=?", (target_id,)).fetchone()
+        if not target:
+            raise HTTPException(404, "Felhasználó nem található")
+    token = issue_session_jwt(target_id)
+    return {"token": token, "user": _public_user(dict(target))}
+
+
 # ─────────── Stats (full per-scale dashboard payload) ───────────
 
 @app.get("/api/stats")

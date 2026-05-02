@@ -227,6 +227,10 @@ export const api = {
     request<{ ok: boolean }>('/api/push/unsubscribe', { method: 'POST', body: JSON.stringify(sub) }),
   pushTest: () => request<{ ok: boolean; sent: number }>('/api/push/test', { method: 'POST' }),
 
+  adminUsers: () => request<{ id: number; email: string; name: string }[]>('/api/admin/users'),
+  adminImpersonate: (target_id: number) =>
+    request<{ token: string; user: User }>(`/api/admin/impersonate?target_id=${target_id}`, { method: 'POST' }),
+
   settings: () => request<Settings>('/api/settings'),
   updateSettings: (s: Partial<Record<keyof Settings, number>>) =>
     request<{ ok: boolean }>('/api/settings', { method: 'PATCH', body: JSON.stringify(s) }),
