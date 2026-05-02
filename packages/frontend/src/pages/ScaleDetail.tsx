@@ -109,13 +109,13 @@ export function ScaleDetail() {
                 <span className="hidden sm:inline">Szinkron</span>
               </button>
             )}
-            {scale.source_type === 'sms' && scale.call_trigger && scale.phone_number && (
+            {scale.source_type === 'sms' && !!scale.call_trigger && !!scale.phone_number && (
               <a href={`tel:${scale.phone_number}`} className="btn-primary">
                 <Phone size={18} />
                 <span className="hidden sm:inline">Hívás</span>
               </a>
             )}
-            {scale.source_type !== 'kaptargsm' && !(scale.source_type === 'sms' && scale.call_trigger) && (
+            {scale.source_type !== 'kaptargsm' && !(scale.source_type === 'sms' && !!scale.call_trigger) && (
               <button className="btn-primary" onClick={() => {
                 setAddWeight('')
                 setAddTemp('')
