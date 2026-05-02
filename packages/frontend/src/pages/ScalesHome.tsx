@@ -21,6 +21,7 @@ export function ScalesHome() {
   const [newScaleName, setNewScaleName] = useState('')
   const [newScaleType, setNewScaleType] = useState<Scale['source_type']>('kaptargsm')
   const [newScaleUrl, setNewScaleUrl] = useState('')
+  const [newScalePhone, setNewScalePhone] = useState('')
 
   const notify = useCallback((m: string) => {
     setMsg(m)
@@ -66,6 +67,7 @@ export function ScalesHome() {
     setNewScaleName('')
     setNewScaleType('kaptargsm')
     setNewScaleUrl('')
+    setNewScalePhone('')
     setAddOpen(true)
   }
 
@@ -148,6 +150,14 @@ export function ScalesHome() {
               placeholder="https://www.kaptargsm.hu/scale/AZONOSÍTÓ.php" />
           </>
         )}
+        {newScaleType === 'sms' && (
+          <>
+            <label className="block text-xs text-slate-400 mb-1">Feladó telefonszám</label>
+            <input className="input mb-4" value={newScalePhone}
+              onChange={e => setNewScalePhone(e.target.value)}
+              placeholder="+36301234567" />
+          </>
+        )}
         <div className="flex justify-end gap-2">
           <button className="btn-ghost" onClick={() => setAddOpen(false)}>Mégse</button>
           <button
@@ -160,6 +170,7 @@ export function ScalesHome() {
                   name: newScaleName.trim(),
                   source_type: newScaleType,
                   source_url: newScaleType === 'kaptargsm' ? newScaleUrl.trim() || undefined : undefined,
+                  phone_number: newScaleType === 'sms' ? newScalePhone.trim() || undefined : undefined,
                 })
                 setAddOpen(false)
                 notify('Mérleg hozzáadva')

@@ -20,7 +20,9 @@ from .auth import (
     upsert_user_from_google,
     issue_session_jwt,
     current_user,
+    current_user_by_ingest_token,
 )
+from .sms import parse_sms
 from . import push
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -99,6 +101,12 @@ class AccountUpdate(BaseModel):
 class PushSubscribeIn(BaseModel):
     endpoint: str
     keys: dict
+
+
+class SmsIngestIn(BaseModel):
+    sender: str
+    content: str
+    recipients: list[str] = []
 
 
 # ─────────── Helpers ───────────
@@ -254,6 +262,40 @@ def delete_scale(scale_id: str, user: dict = Depends(current_user)):
         c.execute("DELETE FROM tare_events WHERE scale_id=?", (scale_id,))
         c.execute("DELETE FROM scales WHERE id=? AND user_id=?", (scale_id, user["id"]))
     return {"ok": True}
+
+
+# ─────────── SMS ingest (iPhone Shortcuts) ───────────
+
+@app.post("/api/ingest/sms")
+def ingest_sms(inp: SmsIngestIn, user: dict = Depends(current_user_by_ingest_token)):
+    sender = inp.sender.strip()
+    with db() as c:
+        row = c.execute(
+            "SELECT * FROM scales WHERE user_id=? AND phone_number=? AND source_type='sms'",
+            (user["id"], sender),
+        ).fetchone()
+        if not row:
+            raise HTTPException(404, f"Nincs SMS-mérleg ehhez a feladóhoz: {sender}")
+        scale = dict(row)
+        parsed = parse_sms(inp.content, scale.get("sms_template"))
+        if not parsed:
+            raise HTTPException(422, "Az SMS tartalmából nem sikerült adatot kinyerni")
+        ts = int(time.time() * 1000)
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+        date_str = datetime.fromtimestamp(ts / 1000, tz=ZoneInfo("Europe/Budapest")).strftime("%Y.%m.%d. %H:%M:%S")
+        c.execute(
+            "INSERT OR REPLACE INTO measurements(timestamp, date_str, weight, battery, temp, scale_id) "
+            "VALUES(?,?,?,?,?,?)",
+            (ts, date_str,
+             round(parsed["weight"], 2),
+             round(parsed.get("battery", 0.0), 2),
+             round(parsed.get("temp", 0.0), 2),
+             scale["id"]),
+        )
+    log = logging.getLogger("kaptar.ingest")
+    log.info("SMS ingest: user=%d scale=%s weight=%.2f", user["id"], scale["id"], parsed["weight"])
+    return {"ok": True, "scale_id": scale["id"], "weight": parsed["weight"]}
 
 
 # ─────────── Measurements ───────────

@@ -41,6 +41,8 @@ export function SettingsPage({ scale, flowers, settings, tareEvents, latestRaw, 
   const [scaleOpen, setScaleOpen] = useState(false)
   const [scaleName, setScaleName] = useState(scale.name)
   const [scaleUrl, setScaleUrl] = useState(scale.source_url ?? '')
+  const [scalePhone, setScalePhone] = useState(scale.phone_number ?? '')
+  const [scaleSmsTemplate, setScaleSmsTemplate] = useState(scale.sms_template ?? '')
 
   const [alertsOpen, setAlertsOpen] = useState(false)
   const [syncMin, setSyncMin] = useState(String(settings.sync_interval_minutes))
@@ -50,6 +52,8 @@ export function SettingsPage({ scale, flowers, settings, tareEvents, latestRaw, 
   function openScaleEdit() {
     setScaleName(scale.name)
     setScaleUrl(scale.source_url ?? '')
+    setScalePhone(scale.phone_number ?? '')
+    setScaleSmsTemplate(scale.sms_template ?? '')
     setScaleOpen(true)
   }
 
@@ -271,14 +275,32 @@ export function SettingsPage({ scale, flowers, settings, tareEvents, latestRaw, 
       <Modal open={scaleOpen} onClose={() => setScaleOpen(false)} title="Mérleg szerkesztése">
         <label className="block text-xs text-slate-400 mb-1">Név</label>
         <input className="input mb-3" value={scaleName} onChange={e => setScaleName(e.target.value)} />
-        <label className="block text-xs text-slate-400 mb-1">Forrás URL</label>
-        <input className="input mb-4" value={scaleUrl} onChange={e => setScaleUrl(e.target.value)} />
+        {scale.source_type === 'kaptargsm' && (
+          <>
+            <label className="block text-xs text-slate-400 mb-1">Forrás URL</label>
+            <input className="input mb-4" value={scaleUrl} onChange={e => setScaleUrl(e.target.value)} />
+          </>
+        )}
+        {scale.source_type === 'sms' && (
+          <>
+            <label className="block text-xs text-slate-400 mb-1">Feladó telefonszám</label>
+            <input className="input mb-3" value={scalePhone} onChange={e => setScalePhone(e.target.value)} placeholder="+36301234567" />
+            <label className="block text-xs text-slate-400 mb-1">SMS sablon (opcionális)</label>
+            <input className="input mb-1" value={scaleSmsTemplate} onChange={e => setScaleSmsTemplate(e.target.value)} placeholder="{weight} kg, {temp} C, {battery} V" />
+            <p className="text-xs text-slate-500 mb-4">Hagyd üresen a kaptárgsm-formátumhoz. Egyedi formátumnál: {'{'+'weight}'}, {'{'+'battery}'}, {'{'+'temp}'}, {'{*}'} helyőrzők.</p>
+          </>
+        )}
         <div className="flex justify-end gap-2">
           <button className="btn-ghost" onClick={() => setScaleOpen(false)}>Mégse</button>
           <button
             className="btn-primary"
             onClick={async () => {
-              await api.updateScale(scale.id, { name: scaleName, source_url: scaleUrl || null })
+              await api.updateScale(scale.id, {
+                name: scaleName,
+                source_url: scale.source_type === 'kaptargsm' ? (scaleUrl || null) : undefined,
+                phone_number: scale.source_type === 'sms' ? (scalePhone.trim() || null) : undefined,
+                sms_template: scale.source_type === 'sms' ? (scaleSmsTemplate.trim() || null) : undefined,
+              })
               setScaleOpen(false)
               notify('Mérleg frissítve')
               onChange()
