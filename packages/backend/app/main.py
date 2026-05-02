@@ -57,6 +57,7 @@ class ScaleIn(BaseModel):
     source_url: Optional[str] = None
     phone_number: Optional[str] = None
     sms_template: Optional[str] = None
+    call_trigger: bool = False
     latitude: Optional[float] = None
     longitude: Optional[float] = None
     location_name: Optional[str] = None
@@ -68,6 +69,7 @@ class ScaleUpdate(BaseModel):
     source_url: Optional[str] = None
     phone_number: Optional[str] = None
     sms_template: Optional[str] = None
+    call_trigger: Optional[bool] = None
     latitude: Optional[float] = None
     longitude: Optional[float] = None
     location_name: Optional[str] = None
@@ -229,10 +231,11 @@ def create_scale(s: ScaleIn, user: dict = Depends(current_user)):
         try:
             c.execute(
                 "INSERT INTO scales(id, user_id, name, source_type, source_url, phone_number, "
-                "sms_template, latitude, longitude, location_name, created_at) "
-                "VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                "sms_template, call_trigger, latitude, longitude, location_name, created_at) "
+                "VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
                 (s.id, user["id"], s.name, s.source_type, s.source_url, s.phone_number,
-                 s.sms_template, s.latitude, s.longitude, s.location_name, int(time.time() * 1000)),
+                 s.sms_template, int(s.call_trigger),
+                 s.latitude, s.longitude, s.location_name, int(time.time() * 1000)),
             )
         except sqlite3.IntegrityError as e:
             raise HTTPException(400, f"Ilyen ID már foglalt: {e}")

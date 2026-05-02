@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, Flower2, Settings as SettingsIcon, RefreshCw, ArrowLeft, Plus } from 'lucide-react'
+import { LayoutDashboard, Flower2, Settings as SettingsIcon, RefreshCw, ArrowLeft, Plus, Phone } from 'lucide-react'
 import { api, type Flower, type Scale, type Season, type Settings as S, type Stats } from '../lib/api'
 import { Dashboard } from './Dashboard'
 import { Seasons } from './Seasons'
@@ -103,12 +103,19 @@ export function ScaleDetail() {
             <p className="text-sm text-slate-400 truncate">{scale.id}</p>
           </div>
           <div className="flex items-center gap-2">
-            {scale.source_type === 'kaptargsm' ? (
+            {scale.source_type === 'kaptargsm' && (
               <button className="btn-primary" onClick={handleSync} disabled={syncing}>
                 <RefreshCw size={18} className={syncing ? 'animate-spin' : ''} />
                 <span className="hidden sm:inline">Szinkron</span>
               </button>
-            ) : (
+            )}
+            {scale.source_type === 'sms' && scale.call_trigger && scale.phone_number && (
+              <a href={`tel:${scale.phone_number}`} className="btn-primary">
+                <Phone size={18} />
+                <span className="hidden sm:inline">Hívás</span>
+              </a>
+            )}
+            {scale.source_type !== 'kaptargsm' && !(scale.source_type === 'sms' && scale.call_trigger) && (
               <button className="btn-primary" onClick={() => {
                 setAddWeight('')
                 setAddTemp('')

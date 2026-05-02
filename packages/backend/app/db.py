@@ -130,6 +130,7 @@ def init_db():
                 source_url    TEXT,
                 phone_number  TEXT,
                 sms_template  TEXT,
+                call_trigger  INTEGER NOT NULL DEFAULT 0,
                 latitude      REAL,
                 longitude     REAL,
                 location_name TEXT,
@@ -211,6 +212,10 @@ def init_db():
         # Add last_synced_at to users if missing (idempotent).
         if not _column_exists(c, "users", "last_synced_at"):
             c.execute("ALTER TABLE users ADD COLUMN last_synced_at INTEGER")
+
+        # Add call_trigger to scales if missing (idempotent).
+        if not _column_exists(c, "scales", "call_trigger"):
+            c.execute("ALTER TABLE scales ADD COLUMN call_trigger INTEGER NOT NULL DEFAULT 0")
 
         # Seed Roland's per-user settings from global table (idempotent per key).
         for k in DEFAULT_USER_SETTINGS:

@@ -23,12 +23,14 @@ export function SettingsPage({ scale, tareEvents, latestRaw, onChange, onDelete,
   const [scaleUrl, setScaleUrl] = useState(scale.source_url ?? '')
   const [scalePhone, setScalePhone] = useState(scale.phone_number ?? '')
   const [scaleSmsTemplate, setScaleSmsTemplate] = useState(scale.sms_template ?? '')
+  const [scaleCallTrigger, setScaleCallTrigger] = useState(!!scale.call_trigger)
 
   function openScaleEdit() {
     setScaleName(scale.name)
     setScaleUrl(scale.source_url ?? '')
     setScalePhone(scale.phone_number ?? '')
     setScaleSmsTemplate(scale.sms_template ?? '')
+    setScaleCallTrigger(!!scale.call_trigger)
     setScaleOpen(true)
   }
 
@@ -226,6 +228,11 @@ export function SettingsPage({ scale, tareEvents, latestRaw, onChange, onDelete,
           <>
             <label className="block text-xs text-slate-400 mb-1">Feladó telefonszám</label>
             <input className="input mb-3" value={scalePhone} onChange={e => setScalePhone(e.target.value)} placeholder="+36301234567" />
+            <label className="flex items-center gap-2 cursor-pointer mb-3">
+              <input type="checkbox" className="accent-honey-400 w-4 h-4"
+                checked={scaleCallTrigger} onChange={e => setScaleCallTrigger(e.target.checked)} />
+              <span className="text-sm text-slate-300">Telefonhívással triggerelt</span>
+            </label>
             <label className="block text-xs text-slate-400 mb-1">SMS sablon (opcionális)</label>
             <input className="input mb-1" value={scaleSmsTemplate} onChange={e => setScaleSmsTemplate(e.target.value)} placeholder="{weight} kg, {temp} C, {battery} V" />
             <p className="text-xs text-slate-500 mb-4">Hagyd üresen a kaptárgsm-formátumhoz. Egyedi formátumnál: {'{weight}'}, {'{battery}'}, {'{temp}'}, {'{*}'} helyőrzők.</p>
@@ -239,6 +246,7 @@ export function SettingsPage({ scale, tareEvents, latestRaw, onChange, onDelete,
               source_url: scale.source_type === 'kaptargsm' ? (scaleUrl || null) : undefined,
               phone_number: scale.source_type === 'sms' ? (scalePhone.trim() || null) : undefined,
               sms_template: scale.source_type === 'sms' ? (scaleSmsTemplate.trim() || null) : undefined,
+              call_trigger: scale.source_type === 'sms' ? (scaleCallTrigger ? 1 : 0) : undefined,
             })
             setScaleOpen(false)
             notify('Mérleg frissítve')

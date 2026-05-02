@@ -22,6 +22,7 @@ export function ScalesHome() {
   const [newScaleType, setNewScaleType] = useState<Scale['source_type']>('kaptargsm')
   const [newScaleUrl, setNewScaleUrl] = useState('')
   const [newScalePhone, setNewScalePhone] = useState('')
+  const [newScaleCallTrigger, setNewScaleCallTrigger] = useState(true)
 
   const notify = useCallback((m: string) => {
     setMsg(m)
@@ -68,6 +69,7 @@ export function ScalesHome() {
     setNewScaleType('kaptargsm')
     setNewScaleUrl('')
     setNewScalePhone('')
+    setNewScaleCallTrigger(true)
     setAddOpen(true)
   }
 
@@ -176,9 +178,14 @@ export function ScalesHome() {
         {newScaleType === 'sms' && (
           <>
             <label className="block text-xs text-slate-400 mb-1">Feladó telefonszám</label>
-            <input className="input mb-4" value={newScalePhone}
+            <input className="input mb-3" value={newScalePhone}
               onChange={e => setNewScalePhone(e.target.value)}
               placeholder="+36301234567" />
+            <label className="flex items-center gap-2 cursor-pointer mb-4">
+              <input type="checkbox" className="accent-honey-400 w-4 h-4"
+                checked={newScaleCallTrigger} onChange={e => setNewScaleCallTrigger(e.target.checked)} />
+              <span className="text-sm text-slate-300">Telefonhívással triggerelt (hívás gomb a kaptáron)</span>
+            </label>
           </>
         )}
         <div className="flex justify-end gap-2">
@@ -194,6 +201,7 @@ export function ScalesHome() {
                   source_type: newScaleType,
                   source_url: newScaleType === 'kaptargsm' ? newScaleUrl.trim() || undefined : undefined,
                   phone_number: newScaleType === 'sms' ? newScalePhone.trim() || undefined : undefined,
+                  call_trigger: newScaleType === 'sms' ? newScaleCallTrigger : undefined,
                 })
                 setAddOpen(false)
                 notify('Mérleg hozzáadva')

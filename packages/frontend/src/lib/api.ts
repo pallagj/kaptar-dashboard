@@ -124,6 +124,7 @@ export interface Scale {
   source_url: string | null
   phone_number: string | null
   sms_template: string | null
+  call_trigger: number  // 0 | 1 (sqlite boolean)
   latitude: number | null
   longitude: number | null
   location_name: string | null
@@ -142,7 +143,7 @@ export interface Settings {
 
 export type ScaleUpdate = Partial<
   Pick<Scale, 'name' | 'source_type' | 'source_url' | 'phone_number' | 'sms_template'
-    | 'latitude' | 'longitude' | 'location_name'>
+    | 'call_trigger' | 'latitude' | 'longitude' | 'location_name'>
 >
 
 export const api = {
@@ -164,6 +165,7 @@ export const api = {
   createScale: (s: {
     id: string; name: string; source_type: ScaleSourceType;
     source_url?: string; phone_number?: string; sms_template?: string;
+    call_trigger?: boolean;
     latitude?: number; longitude?: number; location_name?: string;
   }) => request<{ ok: boolean }>('/api/scales', { method: 'POST', body: JSON.stringify(s) }),
   updateScale: (id: string, data: ScaleUpdate) =>
