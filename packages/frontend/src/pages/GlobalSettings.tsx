@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Plus, Trash2, Bell, BellOff } from 'lucide-react'
-import { api, type Flower, type Scale, type Settings as S } from '../lib/api'
+import { api, type Flower, type Settings as S } from '../lib/api'
 import { useAuth } from '../lib/auth'
-import { Modal } from '../components/Modal'
 import { getPushStatus, subscribe as pushSubscribe, unsubscribe as pushUnsubscribe } from '../lib/push'
 
 export function GlobalSettings() {
@@ -17,29 +16,10 @@ export function GlobalSettings() {
   const [syncMin, setSyncMin] = useState('')
   const [swarmKg, setSwarmKg] = useState('')
   const [batteryV, setBatteryV] = useState('')
-
   const [newFlowerName, setNewFlowerName] = useState('')
 
   const [pushStatus, setPushStatus] = useState<Awaited<ReturnType<typeof getPushStatus>> | 'loading'>('loading')
   const [pushBusy, setPushBusy] = useState(false)
-
-  const [newScaleOpen, setNewScaleOpen] = useState(false)
-  const [newScaleId, setNewScaleId] = useState('')
-  const [newScaleName, setNewScaleName] = useState('')
-  const [newScaleType, setNewScaleType] = useState<Scale['source_type']>('kaptargsm')
-  const [newScaleUrl, setNewScaleUrl] = useState('')
-
-  function openNewScale() {
-    setNewScaleId(crypto.randomUUID())
-    setNewScaleName('')
-    setNewScaleType('kaptargsm')
-    setNewScaleUrl('')
-    setNewScaleOpen(true)
-  }
-
-  function handleTypeChange(t: Scale['source_type']) {
-    setNewScaleType(t)
-  }
 
   function notify(m: string) {
     setMsg(m)
@@ -78,19 +58,6 @@ export function GlobalSettings() {
         {msg && (
           <div className="card px-4 py-2 text-sm text-honey-300 border-honey-700/50 bg-honey-950/30">{msg}</div>
         )}
-
-        {/* Mérlegek */}
-        <section className="card p-5">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-lg font-bold">Mérlegek</h2>
-            <button className="btn-primary" onClick={openNewScale}>
-              <Plus size={18} /> Új mérleg
-            </button>
-          </div>
-          <p className="text-sm text-slate-400">
-            Mérleg szerkesztéséhez kattints rá a főoldalon, majd válaszd a Beállítások fület.
-          </p>
-        </section>
 
         {/* Szinkron & riasztások */}
         <section className="card p-5">
@@ -212,49 +179,6 @@ export function GlobalSettings() {
           </ul>
         </section>
       </div>
-
-      {/* Új mérleg modal */}
-      <Modal open={newScaleOpen} onClose={() => setNewScaleOpen(false)} title="Új mérleg hozzáadása">
-        <label className="block text-xs text-slate-400 mb-1">Típus</label>
-        <select className="input mb-3" value={newScaleType} onChange={e => handleTypeChange(e.target.value as Scale['source_type'])}>
-          <option value="kaptargsm">KaptárGSM (automatikus szinkron)</option>
-          <option value="sms">SMS beküldés</option>
-          <option value="manual">Manuális</option>
-        </select>
-        <p className="text-xs text-slate-500 mb-3">Azonosító automatikusan generálva.</p>
-        <label className="block text-xs text-slate-400 mb-1">Név</label>
-        <input className="input mb-3" value={newScaleName} onChange={e => setNewScaleName(e.target.value)} placeholder="pl. Első kaptár" />
-        {newScaleType === 'kaptargsm' && (
-          <>
-            <label className="block text-xs text-slate-400 mb-1">Forrás URL</label>
-            <input className="input mb-4" value={newScaleUrl} onChange={e => setNewScaleUrl(e.target.value)}
-              placeholder="https://www.kaptargsm.hu/scale/AZONOSÍTÓ.php" />
-          </>
-        )}
-        <div className="flex justify-end gap-2">
-          <button className="btn-ghost" onClick={() => setNewScaleOpen(false)}>Mégse</button>
-          <button
-            className="btn-primary"
-            disabled={!newScaleId.trim() || !newScaleName.trim()}
-            onClick={async () => {
-              try {
-                await api.createScale({
-                  id: newScaleId.trim(),
-                  name: newScaleName.trim(),
-                  source_type: newScaleType,
-                  source_url: newScaleType === 'kaptargsm' ? newScaleUrl.trim() || undefined : undefined,
-                })
-                setNewScaleOpen(false)
-                setNewScaleId(''); setNewScaleName(''); setNewScaleUrl('')
-                notify('Mérleg létrehozva')
-                navigate('/')
-              } catch (e: any) { notify('Hiba: ' + e.message) }
-            }}
-          >
-            Létrehozás
-          </button>
-        </div>
-      </Modal>
     </div>
   )
 }

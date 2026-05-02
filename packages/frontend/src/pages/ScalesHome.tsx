@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { RefreshCw, LogOut, Settings } from 'lucide-react'
+import { RefreshCw, LogOut, Settings, Plus } from 'lucide-react'
 import { api, type Scale, type Settings as S } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import { ScaleCard } from '../components/ScaleCard'
+import { Modal } from '../components/Modal'
 
 export function ScalesHome() {
   const navigate = useNavigate()
@@ -14,6 +15,12 @@ export function ScalesHome() {
   const [syncing, setSyncing] = useState(false)
   const [msg, setMsg] = useState('')
   const msgTimer = useRef<number | null>(null)
+
+  const [addOpen, setAddOpen] = useState(false)
+  const [newScaleId, setNewScaleId] = useState('')
+  const [newScaleName, setNewScaleName] = useState('')
+  const [newScaleType, setNewScaleType] = useState<Scale['source_type']>('kaptargsm')
+  const [newScaleUrl, setNewScaleUrl] = useState('')
 
   const notify = useCallback((m: string) => {
     setMsg(m)
@@ -54,6 +61,14 @@ export function ScalesHome() {
     }
   }
 
+  function openAdd() {
+    setNewScaleId(crypto.randomUUID())
+    setNewScaleName('')
+    setNewScaleType('kaptargsm')
+    setNewScaleUrl('')
+    setAddOpen(true)
+  }
+
   if (loading) {
     return (
       <div className="h-screen flex items-center justify-center text-slate-300">
@@ -75,6 +90,10 @@ export function ScalesHome() {
             {user && <p className="text-sm text-slate-400">{user.name || user.email}</p>}
           </div>
           <div className="flex items-center gap-2">
+            <button className="btn-primary" onClick={openAdd}>
+              <Plus size={18} />
+              <span className="hidden sm:inline">Mérleg</span>
+            </button>
             <button className="btn-primary" onClick={handleSync} disabled={syncing}>
               <RefreshCw size={18} className={syncing ? 'animate-spin' : ''} />
               <span className="hidden sm:inline">Szinkron</span>
@@ -95,8 +114,11 @@ export function ScalesHome() {
         )}
 
         {scales.length === 0 ? (
-          <div className="card p-10 text-center">
+          <div className="card p-10 text-center space-y-4">
             <p className="text-slate-300">Még nincsenek mérlegek konfigurálva.</p>
+            <button className="btn-primary" onClick={openAdd}>
+              <Plus size={18} /> Mérleg hozzáadása
+            </button>
           </div>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -106,6 +128,49 @@ export function ScalesHome() {
           </div>
         )}
       </div>
+
+      <Modal open={addOpen} onClose={() => setAddOpen(false)} title="Mérleg hozzáadása">
+        <label className="block text-xs text-slate-400 mb-1">Típus</label>
+        <select className="input mb-3" value={newScaleType}
+          onChange={e => setNewScaleType(e.target.value as Scale['source_type'])}>
+          <option value="kaptargsm">KaptárGSM (automatikus szinkron)</option>
+          <option value="sms">SMS beküldés</option>
+          <option value="manual">Manuális</option>
+        </select>
+        <label className="block text-xs text-slate-400 mb-1">Név</label>
+        <input className="input mb-3" value={newScaleName}
+          onChange={e => setNewScaleName(e.target.value)} placeholder="pl. Első kaptár" />
+        {newScaleType === 'kaptargsm' && (
+          <>
+            <label className="block text-xs text-slate-400 mb-1">Forrás URL</label>
+            <input className="input mb-4" value={newScaleUrl}
+              onChange={e => setNewScaleUrl(e.target.value)}
+              placeholder="https://www.kaptargsm.hu/scale/AZONOSÍTÓ.php" />
+          </>
+        )}
+        <div className="flex justify-end gap-2">
+          <button className="btn-ghost" onClick={() => setAddOpen(false)}>Mégse</button>
+          <button
+            className="btn-primary"
+            disabled={!newScaleName.trim()}
+            onClick={async () => {
+              try {
+                await api.createScale({
+                  id: newScaleId,
+                  name: newScaleName.trim(),
+                  source_type: newScaleType,
+                  source_url: newScaleType === 'kaptargsm' ? newScaleUrl.trim() || undefined : undefined,
+                })
+                setAddOpen(false)
+                notify('Mérleg hozzáadva')
+                await load()
+              } catch (e: any) { notify('Hiba: ' + e.message) }
+            }}
+          >
+            Hozzáadás
+          </button>
+        </div>
+      </Modal>
     </div>
   )
 }
