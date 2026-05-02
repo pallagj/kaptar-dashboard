@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Plus, Trash2, Bell, BellOff, LayoutList, Settings as SettingsIcon, LogOut } from 'lucide-react'
+import { Plus, Trash2, Bell, BellOff, LayoutList, Settings as SettingsIcon, LogOut } from 'lucide-react'
 import { api, getAuthToken, setAuthToken, type Flower, type Settings as S } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import { getPushStatus, subscribe as pushSubscribe, unsubscribe as pushUnsubscribe } from '../lib/push'
@@ -50,12 +50,9 @@ export function GlobalSettings() {
   return (
     <div className="min-h-screen flex flex-col">
       <div className="flex-1 w-full max-w-2xl mx-auto px-3 sm:px-6 py-4 sm:py-6 space-y-6">
-        <header className="flex items-center gap-3">
-          <button className="btn-ghost" onClick={() => navigate('/')}><ArrowLeft size={18} /></button>
-          <div>
-            <h1 className="text-xl font-bold">Beállítások</h1>
-            {user && <p className="text-xs text-slate-400">{user.email}</p>}
-          </div>
+        <header>
+          <h1 className="text-xl font-bold">Beállítások</h1>
+          {user && <p className="text-xs text-slate-400">{user.email}</p>}
         </header>
 
         {msg && (
