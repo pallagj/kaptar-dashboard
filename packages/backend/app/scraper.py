@@ -17,28 +17,74 @@ log = logging.getLogger("kaptar.scraper")
 
 DATE_RE = re.compile(r"(\d{4})\.(\d{2})\.(\d{2})\.\s+(\d{2}):(\d{2}):(\d{2})")
 
+# Map (normalised) Hungarian column headers to our field names.
+_HEADER_FIELDS = {
+    "dátum": "date",
+    "súly": "weight",
+    "akkufesz": "battery",
+    "hőfok": "temp",
+    "hőmérséklet": "temp",
+}
+
+# Positional fallback used only when the header row is missing/unrecognised,
+# keyed by the number of <td> cells in a data row:
+#   legacy /scale UI  → Dátum, Súly, Akkufesz., Hőfok
+#   new    /kaptar UI → Dátum, Súly, Hőfok, Súlyváltozás, Akkufesz., Térerő
+_POSITIONAL = {
+    4: {"date": 0, "weight": 1, "battery": 2, "temp": 3},
+    6: {"date": 0, "weight": 1, "temp": 2, "battery": 4},
+}
+
+_REQUIRED = {"date", "weight", "battery", "temp"}
+
+
+def _column_index(table) -> Dict[str, int] | None:
+    """Map field -> column index from a table's header (<th>) row, or None."""
+    for tr in table.find_all("tr"):
+        ths = tr.find_all("th")
+        if len(ths) < len(_REQUIRED):
+            continue
+        cols: Dict[str, int] = {}
+        for i, th in enumerate(ths):
+            key = th.get_text(strip=True).lower().rstrip(".")
+            field = _HEADER_FIELDS.get(key)
+            if field and field not in cols:
+                cols[field] = i
+        if _REQUIRED <= cols.keys():
+            return cols
+    return None
+
 
 def parse_html(html: str) -> List[Dict]:
     soup = BeautifulSoup(html, "lxml")
     tables = soup.find_all("table")
     if not tables:
         return []
-    # The last table contains the full measurement list (Dátum, Súly, Akkufesz., Hőfok)
+    # The measurement table ("Mérési eredmények") is last on both the legacy
+    # /scale and the new /kaptar pages; find it by its header row so we tolerate
+    # differing column counts and order, falling back to the last table.
+    header_cols = None
     target = tables[-1]
-    rows = target.find_all("tr")
+    for t in reversed(tables):
+        header_cols = _column_index(t)
+        if header_cols:
+            target = t
+            break
+
     out: List[Dict] = []
-    for tr in rows:
+    for tr in target.find_all("tr"):
         tds = tr.find_all("td")
-        if len(tds) != 4:
+        cols = header_cols or _POSITIONAL.get(len(tds))
+        if not cols or max(cols.values()) >= len(tds):
             continue
-        date_str = tds[0].get_text(strip=True)
+        date_str = tds[cols["date"]].get_text(strip=True)
         m = DATE_RE.search(date_str)
         if not m:
             continue
         try:
-            weight = float(tds[1].get_text(strip=True).replace(",", "."))
-            battery = float(tds[2].get_text(strip=True).replace(",", "."))
-            temp = float(tds[3].get_text(strip=True).replace(",", "."))
+            weight = float(tds[cols["weight"]].get_text(strip=True).replace(",", "."))
+            battery = float(tds[cols["battery"]].get_text(strip=True).replace(",", "."))
+            temp = float(tds[cols["temp"]].get_text(strip=True).replace(",", "."))
         except ValueError:
             continue
         if weight < 5.0:
